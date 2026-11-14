@@ -64,3 +64,16 @@ amazon:IND             Amazon
 # --- Atlassian ---
 # One JSON file with every opening worldwide; the pipeline keeps the India ones.
 atlassian:listings     Atlassian
+
+# --- Workday ---
+# Token is tenant/pod/site (from the career site's address). Only India's technical jobs are kept.
+# Verified live: Adobe and Salesforce. Intel, Mastercard, Dell, Walmart and Qualcomm were down for
+# Workday maintenance when this was written (Nvidia has left Workday); add them with the same
+# kind of line once `make seed` can reach them.
+workday:salesforce/wd12/External_Career_Site   Salesforce
+workday:adobe/wd5/external_experienced         Adobe
+
+# --- Eightfold ---
+# Token is host/domain/location. Microsoft's robots.txt allows /api/pcsx explicitly.
+# Netflix has PCSX switched off, and its only other API lists 11 India jobs, none technical.
+eightfold:apply.careers.microsoft.com/microsoft.com/India   Microsoft

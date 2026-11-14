@@ -22,8 +22,10 @@ import (
 	"jobscraper/internal/fetcher/amazon"
 	"jobscraper/internal/fetcher/ashby"
 	"jobscraper/internal/fetcher/atlassian"
+	"jobscraper/internal/fetcher/eightfold"
 	"jobscraper/internal/fetcher/greenhouse"
 	"jobscraper/internal/fetcher/lever"
+	"jobscraper/internal/fetcher/workday"
 	"jobscraper/internal/normalizer"
 	"jobscraper/internal/pipeline"
 	"jobscraper/internal/store"
@@ -145,12 +147,21 @@ func newRunner(ctx context.Context, cfg *config.Config) (*pipeline.Runner, func(
 		UserAgent:   cfg.UserAgent,
 		MinInterval: cfg.MinInterval,
 	})
+	// Workday and Eightfold need one request per job for its description. Only titles that
+	// look technical are worth it, so the rest are skipped before that request is made.
+	technical := func(title, department string) bool { return normalizer.RoleFamily(title, department) != "" }
+	wd := workday.New(cfg.UserAgent, client)
+	wd.Keep = technical
+	ef := eightfold.New(cfg.UserAgent, client)
+	ef.Keep = technical
 	adapters := []fetcher.Adapter{
 		greenhouse.New(cfg.UserAgent, client),
 		lever.New(cfg.UserAgent, client),
 		ashby.New(cfg.UserAgent, client),
 		amazon.New(cfg.UserAgent, client),
 		atlassian.New(cfg.UserAgent, client),
+		wd,
+		ef,
 	}
 	byKind := make(map[string]fetcher.Adapter, len(adapters))
 	for _, a := range adapters {

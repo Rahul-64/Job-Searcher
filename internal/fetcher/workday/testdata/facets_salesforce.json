@@ -1,0 +1,37 @@
+{
+ "total": 1611,
+ "jobPostings": [
+  {
+   "title": "Platform & Security Sales Specialist",
+   "externalPath": "/job/Mexico---Mexico-City/Platform---Security-Sales-Specialist_JR367446",
+   "locationsText": "Mexico - Mexico City",
+   "postedOn": "Posted Yesterday",
+   "bulletFields": [
+    "JR367446"
+   ]
+  }
+ ],
+ "facets": [
+  {
+   "facetParameter": "CF_-_REC_-_LRV_-_Job_Posting_Anchor_-_Country_from_Job_Posting_Location_Extended",
+   "descriptor": "Country",
+   "values": [
+    {
+     "descriptor": "India",
+     "id": "c4f78be1a8f14da0ab49ce1162348a5e",
+     "count": 103
+    },
+    {
+     "descriptor": "Mexico",
+     "id": "e2adff9272454660ac4fdb56fc70bb51",
+     "count": 69
+    },
+    {
+     "descriptor": "Canada",
+     "id": "a30a87ed25634629aa6c3958aa2b91ea",
+     "count": 51
+    }
+   ]
+  }
+ ]
+}

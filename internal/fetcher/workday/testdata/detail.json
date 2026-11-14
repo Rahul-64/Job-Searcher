@@ -1,0 +1,43 @@
+{
+ "jobPostingInfo": {
+  "id": "7bf2181291d51001b2af1bfe53c10000",
+  "title": "Software Engineering LMTS - Backend Distributed Systems",
+  "jobDescription": "<p style=\"text-align:left\"><i>To get the best candidate experience, please consider applying for a maximum of 3 roles within 12 months to ensure you are not duplicating efforts.</i></p><p style=\"text-align:inherit\"></p><p style=\"text-align:left\"><span class=\"emphasis-3\">Job Category</span></p>Software Engineering<p style=\"text-align:inherit\"></p><p style=\"text-align:left\"><span class=\"emphasis-3\">Job Details</span></p><p style=\"text-align:inherit\"></p><p style=\"text-align:left\"><span class=\"emphasis-3\"><b><b>About Salesforce</b></b></span></p><p>Salesforce is the #1 AI CRM, where humans with agents drive customer success together. Here, ambition meets action. Tech meets trust. And innovation isn’t a buzzword — it’s a way of life. The world of work as we know it is changing and we&#39;re looking for Trailblazers who are passionate about bettering business and the world through AI, driving",
+  "location": "India - Bangalore",
+  "additionalLocations": [
+   "India - Hyderabad"
+  ],
+  "postedOn": "Posted Yesterday",
+  "startDate": "2026-11-13",
+  "timeType": "Full time",
+  "jobReqId": "JR338174",
+  "jobPostingId": "Software-Engineering-LMTS_JR338174",
+  "jobPostingSiteId": "External_Career_Site",
+  "country": {
+   "descriptor": "India",
+   "id": "c4f78be1a8f14da0ab49ce1162348a5e"
+  },
+  "canApply": true,
+  "posted": true,
+  "includeResumeParsing": true,
+  "jobRequisitionLocation": {
+   "descriptor": "India - Bangalore",
+   "country": {
+    "descriptor": "India",
+    "id": "c4f78be1a8f14da0ab49ce1162348a5e",
+    "alpha2Code": "IN"
+   }
+  },
+  "remoteType": "Office - Flexible",
+  "externalUrl": "https://salesforce.wd12.myworkdayjobs.com/External_Career_Site/job/India---Bangalore/Software-Engineering-LMTS_JR338174",
+  "questionnaireId": "f3f9e89cd7cb1002100fd52c83a70000",
+  "timeLeftToApply": "2 hours left to apply",
+  "endDate": "2026-11-15",
+  "jobPostingEndDateAsText": "End Date: November 15, 2026"
+ },
+ "hiringOrganization": {
+  "name": "611 salesforce.com India Private Limited",
+  "url": ""
+ },
+ "userAuthenticated": false
+}

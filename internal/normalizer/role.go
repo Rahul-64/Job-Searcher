@@ -38,7 +38,7 @@ var (
 
 	infraRe = regexp.MustCompile(`\b(devops|devsecops|sre|site reliability|reliability engineer|reliability engineering|platform engineer|infrastructure engineer|infrastructure software|infrastructure architect|cloud engineer|cloud architect|cloud security|security engineer|security architect|security researcher|security analyst|appsec|application security|product security|cyber ?security|information security|infosec|network engineer|systems? engineer|systems? administrator|database administrator|dba|kubernetes|production engineer|observability|vulnerability (management )?engineer|penetration test(er|ing)|cloud operations engineer|monitoring engineer)\b`)
 
-	softwareRe = regexp.MustCompile(`\b(software|developer|sde|swe|programmer|backend|back-end|back end|frontend|front-end|front end|full[- ]?stack|web engineer|mobile engineer|android|ios|embedded|firmware|member of technical staff|mts|forward deployed engineer(ing)?|engineering (manager|director|lead|head)|(manager|director|head|vp|vice president),? (of )?(software )?engineering|vp,? engineering|technical lead|tech lead)\b`)
+	softwareRe = regexp.MustCompile(`\b(software|developer|sde|swe|programmer|backend|back-end|back end|frontend|front-end|front end|full[- ]?stack|web engineer|mobile engineer|android|ios|embedded|firmware|member of technical staff|mts|lmts|smts|pmts|amts|forward deployed engineer(ing)?|engineering (manager|director|lead|head)|(manager|director|head|vp|vice president),? (of )?(software )?engineering|vp,? engineering|technical lead|tech lead)\b`)
 
 	// A bare "Engineer" says little. Departments here are team names ("Cloud Data Path",
 	// "App Modernization ENG"), so they cannot prove a job is technical; they can only show

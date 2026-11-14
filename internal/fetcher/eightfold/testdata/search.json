@@ -1,0 +1,97 @@
+{
+ "status": 200,
+ "error": null,
+ "data": {
+  "positions": [
+   {
+    "id": 1970393557051029,
+    "displayJobId": "200064833",
+    "name": "Consulting Project Management",
+    "locations": [
+     "India, Uttar Pradesh, Noida",
+     "India, Maharashtra, Mumbai",
+     "India, Karnataka, Bangalore"
+    ],
+    "standardizedLocations": [
+     "Noida, UP, IN",
+     "Mumbai, MH, IN",
+     "Bengaluru, KA, IN"
+    ],
+    "postedTs": 1794581139,
+    "department": "Consulting Project Management",
+    "workLocationOption": "onsite",
+    "atsJobId": "200064833",
+    "positionUrl": "/careers/job/1970393557051029"
+   },
+   {
+    "id": 1970393557070379,
+    "displayJobId": "200066639",
+    "name": "Data & AI Consultant",
+    "locations": [
+     "India, Karnataka, Bangalore",
+     "India, Maharashtra, Mumbai",
+     "India, Uttar Pradesh, Noida"
+    ],
+    "standardizedLocations": [
+     "Bengaluru, KA, IN",
+     "Mumbai, MH, IN",
+     "Noida, UP, IN"
+    ],
+    "postedTs": 1794579728,
+    "department": "Technology Consulting",
+    "workLocationOption": "onsite",
+    "atsJobId": "200066639",
+    "positionUrl": "/careers/job/1970393557070379"
+   },
+   {
+    "id": 1970393557045581,
+    "displayJobId": "200063426",
+    "name": "Software Engineer",
+    "locations": [
+     "India, Karnataka, Bangalore"
+    ],
+    "standardizedLocations": [
+     "Bengaluru, KA, IN"
+    ],
+    "postedTs": 1794559068,
+    "department": "Software Engineering",
+    "workLocationOption": "onsite",
+    "atsJobId": "200063426",
+    "positionUrl": "/careers/job/1970393557045581"
+   },
+   {
+    "id": 1970393557055514,
+    "displayJobId": "200066060",
+    "name": "Principal Software Engineer",
+    "locations": [
+     "India, Karnataka, Bangalore"
+    ],
+    "standardizedLocations": [
+     "Bengaluru, KA, IN"
+    ],
+    "postedTs": 1794556078,
+    "department": "Software Engineering",
+    "workLocationOption": "onsite",
+    "atsJobId": "200066060",
+    "positionUrl": "/careers/job/1970393557055514"
+   },
+   {
+    "id": 1970393557070806,
+    "displayJobId": "200066869",
+    "name": "Sr Hub Solution Engineer - Cloud & AI",
+    "locations": [
+     "India, Karnataka, Bangalore"
+    ],
+    "standardizedLocations": [
+     "Bengaluru, KA, IN"
+    ],
+    "postedTs": 1794555276,
+    "department": "Solution Engineering",
+    "workLocationOption": "onsite",
+    "atsJobId": "200066869",
+    "positionUrl": "/careers/job/1970393557070806"
+   }
+  ],
+  "count": 5
+ }
+}
