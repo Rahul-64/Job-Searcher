@@ -201,6 +201,9 @@ var (
 	segSepRe = regexp.MustCompile(`(?i)\s*[;|/\n]\s*|\s+or\s+`)
 	parenRe  = regexp.MustCompile(`[()\[\]]`)
 	spaceRe  = regexp.MustCompile(`\s+`)
+	// "Bangkok based", "Pune Based", "Bangalore-based", "based in Pune": the word
+	// only says the person works from there, so it is dropped before matching.
+	basedRe = regexp.MustCompile(`(?i)\bbased(?:\s+in)?\b`)
 )
 
 // ParseLocation turns text such as "Bangalore, IND; Pune, IN", "Remote - USA" or
@@ -274,6 +277,7 @@ func (d *draft) addHint(c string, strong bool) {
 
 func cleanToken(t string) string {
 	t = markerRe.ReplaceAllString(t, " ")
+	t = basedRe.ReplaceAllString(t, " ")
 	t = spaceRe.ReplaceAllString(t, " ")
 	return strings.Trim(t, " .,:;-–—")
 }
