@@ -26,6 +26,17 @@ greenhouse:okta
 greenhouse:stripe
 greenhouse:databricks
 greenhouse:datadog
+greenhouse:sigmoid     Sigmoid
+greenhouse:inmobi      InMobi
+greenhouse:agoda       Agoda
+greenhouse:toast       Toast
+greenhouse:highradius  HighRadius
+greenhouse:glance      Glance
+greenhouse:zenoti      Zenoti
+greenhouse:hackerrank  HackerRank
+greenhouse:6sense      6sense
+greenhouse:observeai   Observe.AI
+greenhouse:samsara     Samsara
 
 # --- Lever ---
 lever:paytm            Paytm
@@ -34,9 +45,12 @@ lever:cred             CRED
 lever:zeta             Zeta
 lever:mindtickle       Mindtickle
 lever:jumpcloud        JumpCloud
+lever:fampay           FamPay
 
 # --- Ashby ---
 ashby:sarvam           Sarvam AI
 ashby:clickhouse       ClickHouse
 ashby:openai           OpenAI
 ashby:notion           Notion
+ashby:snowflake        Snowflake
+ashby:gainsight        Gainsight
