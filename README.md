@@ -19,13 +19,21 @@ go run ./cmd/scraper migrate          # create the P0 tables
 go run ./cmd/scraper migrate-status   # confirm
 ```
 
-## Scraping (Greenhouse, Lever, Ashby, Amazon, Atlassian)
+## Scraping (Greenhouse, Lever, Ashby, Amazon, Atlassian, Workday, Eightfold)
 
 | Kind | Source | Token | Notes |
 |---|---|---|---|
 | `greenhouse`, `lever`, `ashby` | each company's public job board API | the board name | most startups and scale-ups |
 | `amazon` | amazon.jobs search API | an ISO alpha-3 country code (`IND`) | only technical categories are fetched (software, applied science, data, BI, research, systems/security engineering, database administration): India lists about 2,000 jobs, most of them warehouse, HR and finance |
 | `atlassian` | one JSON listing of every opening | `listings` | all openings worldwide; the pipeline keeps India's |
+| `workday` | a company's Workday career site (the JSON calls its own page makes) | `tenant/pod/site`, e.g. `salesforce/wd12/External_Career_Site` | India only: the country filter's name differs per company, so it is found in the site's facets. Needs one request per job for its description, so jobs whose title is clearly not technical are skipped first |
+| `eightfold` | Eightfold's PCSX API (Microsoft) | `host/domain/location`, e.g. `apply.careers.microsoft.com/microsoft.com/India` | the site's robots.txt allows `/api/pcsx` explicitly. Microsoft answers more than half of requests with 429 ("try again later") whatever the pace, so the adapter waits 10s, 20s, 40s, 60s... and retries |
+
+Workday and Eightfold only keep jobs whose title looks technical (`normalizer.RoleFamily`); the rest never
+reach the database. In the seed file today: Salesforce, Adobe (Workday) and Microsoft (Eightfold).
+Intel, Mastercard, Dell, Walmart and Qualcomm are Workday companies too but their servers were in
+maintenance when this was built, so they are not verified yet; Nvidia has left Workday. Netflix has PCSX
+switched off and its only other API lists a handful of India jobs, none technical.
 
 Every adapter goes through the same polite client (robots.txt, rate limits, retries), keeps each job's
 original payload, and re-derives from it without re-scraping.
