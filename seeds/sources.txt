@@ -54,3 +54,13 @@ ashby:openai           OpenAI
 ashby:notion           Notion
 ashby:snowflake        Snowflake
 ashby:gainsight        Gainsight
+
+# --- Amazon ---
+# amazon.jobs search API, India, technical categories only (software, applied science, data,
+# BI, research, systems/security engineering, database administration). The token is an ISO
+# alpha-3 country code.
+amazon:IND             Amazon
+
+# --- Atlassian ---
+# One JSON file with every opening worldwide; the pipeline keeps the India ones.
+atlassian:listings     Atlassian
