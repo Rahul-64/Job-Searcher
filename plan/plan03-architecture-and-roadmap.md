@@ -142,10 +142,16 @@ Secrets are never committed. Use a `.env.example` only.
 - Known gaps: misspelt regions (`Uttrakhand`) are not recognised; trigram/fuzzy cross-source dedup is not built because no job currently exists on two platforms
 - **Demo:** same job listed twice shows once; `Bangalore, IND` becomes Bengaluru, Karnataka, IN; `make quality`
 
-### Phase 4 — API + dashboard (Vercel)
-- [ ] `api/jobs` (search, filters, pagination, `country` param default IN), `api/companies`, `api/stats`
-- [ ] Dashboard: search, filters, job detail, source health page
-- **Demo:** public URL, filter by city/skill/experience
+### Phase 4 — API + dashboard
+- [x] Read-only API (`internal/api`): `jobs` (full-text search with web-search syntax, city with aliases, company, remote, level, type, experience, posting date, salary, pagination), `job`, `facets`, `stats`, `sources`, `health`
+- [x] One handler, two hosts: `cmd/serve` (local) and `api/index.go` (Vercel function, routed via `vercel.json`)
+- [x] Dashboard in `public/` (plain HTML/JS, no build step): search, filters kept in the URL, highlighted match snippets, job detail dialog, source-health page, light/dark, responsive
+- [x] Safety: bound parameters only, strict validation (400s), generic 500s, read-only, CSP with no inline script, dashboard inserts job text as text and links only to http(s)
+- [x] Tests: 13 handler tests with a fake store (validation, errors, headers, caching, routing), 4 query-builder safety tests, 2 database integration tests (every filter, sort, paging, detail, facets, source health), 12 dashboard helper tests (Node)
+- Measured (local to Neon in Ohio, from India): search ~550 ms (one round trip), cached aggregates 13 ms; first facets call was 2.5 s before its five queries were made concurrent
+- Decisions: `public/` instead of `web/` (Vercel serves it with no config); "new this week" counts by posting date, not by when we first scraped it
+- **Not verified on Vercel itself** (no deploy from here): Go version acceptance and the rewrite are the two things to check
+- **Demo:** `make serve`, search "kubernetes" in Bengaluru, open a job, follow the link
 
 ### Phase 5 — Intelligence & alerts
 - [ ] P1 tables live: skills taxonomy + `job_skills`, multi-location

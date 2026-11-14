@@ -37,6 +37,9 @@ jobs:
       - name: Test
         run: go test ./...
 
+      - name: Dashboard tests
+        run: node --test public/lib.test.mjs
+
       - name: Build
         run: go build -o scraper ./cmd/scraper
 

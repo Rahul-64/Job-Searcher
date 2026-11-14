@@ -6,7 +6,7 @@
 # Or in PowerShell, once per session:          Set-Alias make mingw32-make
 
 .DEFAULT_GOAL := help
-.PHONY: help build test test-unit vet fmt tidy check ping migrate migrate-down migrate-status stats seed run run-all run-due sources enable disable renormalize dedup quality seed-locations prune version
+.PHONY: help build test test-unit test-web serve vet fmt tidy check ping migrate migrate-down migrate-status stats seed run run-all run-due sources enable disable renormalize dedup quality seed-locations prune version
 
 SOURCE ?=
 
@@ -15,7 +15,8 @@ help:
 	@echo Dev:
 	@echo     build            compile to bin/
 	@echo     test             run all tests, including database integration tests
-	@echo     test-unit        fast tests only, no database
+	@echo     test-unit        fast Go tests only, no database
+	@echo     test-web         dashboard helper tests, needs Node
 	@echo     vet              static checks
 	@echo     fmt              format code
 	@echo     tidy             tidy go.mod and go.sum
@@ -31,6 +32,8 @@ help:
 	@echo     run SOURCE=greenhouse:groww   scrape one source
 	@echo     run-due          scrape only sources that are due, what the daily cron runs
 	@echo     run-all          scrape every enabled source, due or not
+	@echo Dashboard and API:
+	@echo     serve            run the dashboard and API at http://127.0.0.1:8080
 	@echo Source health:
 	@echo     sources          list sources with state, failures and last run
 	@echo     enable SOURCE=kind:token    re-enable a source
@@ -54,6 +57,12 @@ test:
 test-unit:
 	go test -short ./...
 
+test-web:
+	node --test public/lib.test.mjs
+
+serve:
+	go run ./cmd/serve
+
 vet:
 	go vet ./...
 
@@ -63,7 +72,7 @@ fmt:
 tidy:
 	go mod tidy
 
-check: fmt vet test build
+check: fmt vet test test-web build
 
 ping:
 	go run ./cmd/scraper ping

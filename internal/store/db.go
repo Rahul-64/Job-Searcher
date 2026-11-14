@@ -15,14 +15,20 @@ import (
 	"jobscraper/migrations"
 )
 
-// Open creates a pgx pool and verifies connectivity.
+// Open creates a pgx pool (5 connections) and verifies connectivity.
 func Open(ctx context.Context, url string) (*pgxpool.Pool, error) {
+	return OpenWithMaxConns(ctx, url, 5)
+}
+
+// OpenWithMaxConns is Open with an explicit pool size. Serverless instances
+// should keep it small: many instances share one Neon connection budget.
+func OpenWithMaxConns(ctx context.Context, url string, maxConns int32) (*pgxpool.Pool, error) {
 	cfg, err := pgxpool.ParseConfig(url)
 	if err != nil {
 		return nil, fmt.Errorf("parse database url: %w", err)
 	}
 	// Neon scales to zero; keep the pool small and tolerate a slow first connect.
-	cfg.MaxConns = 5
+	cfg.MaxConns = maxConns
 	cfg.ConnConfig.ConnectTimeout = 15 * time.Second
 	// Neon's pooled endpoint sits behind pgbouncer; unnamed prepared statements
 	// (describe mode) work there, named cached ones can break.

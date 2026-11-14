@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>India Tech Jobs</title>
+  <meta name="description" content="Search tech jobs in India collected daily from company career pages.">
+  <link rel="stylesheet" href="/style.css">
+  <script type="module" src="/app.js"></script>
+</head>
+<body>
+  <header class="top">
+    <div class="wrap">
+      <h1><a href="/">India Tech Jobs</a></h1>
+      <p id="stats" class="muted" aria-live="polite">Loading…</p>
+      <nav>
+        <a href="#" id="nav-jobs" aria-current="page">Jobs</a>
+        <a href="#sources" id="nav-sources">Source health</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section id="view-jobs">
+      <form id="search" role="search" class="search">
+        <label class="sr-only" for="q">Search jobs</label>
+        <input id="q" name="q" type="search" placeholder="Search jobs, e.g. go backend, data engineer, &quot;product manager&quot;" autocomplete="off" maxlength="200">
+        <button type="submit">Search</button>
+      </form>
+
+      <div class="filters">
+        <label>City <select id="city"><option value="">Any city</option></select></label>
+        <label>Company <select id="company"><option value="">Any company</option></select></label>
+        <label>Work <select id="remote"><option value="">Any</option></select></label>
+        <label>Level <select id="seniority"><option value="">Any</option></select></label>
+        <label>Type <select id="employment"><option value="">Any</option></select></label>
+        <label>Posted
+          <select id="posted_within">
+            <option value="">Any time</option>
+            <option value="1">Last 24 hours</option>
+            <option value="7">Last 7 days</option>
+            <option value="30">Last 30 days</option>
+          </select>
+        </label>
+        <label>My experience (years) <input id="exp" type="number" min="0" max="50" inputmode="numeric" placeholder="e.g. 4"></label>
+        <label class="check"><input id="hide_unknown_exp" type="checkbox"> Hide jobs that don't state it</label>
+        <label class="check"><input id="has_salary" type="checkbox"> Salary shown</label>
+        <label>Sort
+          <select id="sort">
+            <option value="">Best match / newest</option>
+            <option value="newest">Newest first</option>
+          </select>
+        </label>
+        <button type="button" id="clear" class="link">Clear filters</button>
+      </div>
+
+      <p id="count" class="count" aria-live="polite"></p>
+      <ul id="results" class="results"></ul>
+      <p id="empty" class="empty" hidden></p>
+      <nav id="pager" class="pager" aria-label="Pagination" hidden>
+        <button type="button" id="prev">← Previous</button>
+        <span id="page-label"></span>
+        <button type="button" id="next">Next →</button>
+      </nav>
+    </section>
+
+    <section id="view-sources" hidden>
+      <h2>Source health</h2>
+      <p class="muted">Each company's job board is scraped once a day. A source that fails five times in a row is switched off until it is fixed.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Company</th><th>Platform</th><th>State</th><th>Open jobs</th><th>Last run</th><th>Last result</th></tr></thead>
+          <tbody id="sources-body"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <dialog id="job" aria-labelledby="job-title">
+    <article>
+      <button type="button" id="job-close" class="close" aria-label="Close">×</button>
+      <h2 id="job-title"></h2>
+      <p id="job-meta" class="muted"></p>
+      <ul id="job-chips" class="chips" aria-label="Job details"></ul>
+      <p><a id="job-apply" class="apply" target="_blank" rel="noopener noreferrer">View &amp; apply on the company site ↗</a></p>
+      <div id="job-places"></div>
+      <h3>Description</h3>
+      <div id="job-desc" class="desc"></div>
+      <p id="job-postings" class="muted small"></p>
+    </article>
+  </dialog>
+
+  <noscript><p class="wrap">This page needs JavaScript to load the job listings.</p></noscript>
+</body>
+</html>
