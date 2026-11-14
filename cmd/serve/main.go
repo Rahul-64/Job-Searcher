@@ -12,6 +12,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"mime"
 	"net/http"
 	"os"
 	"os/signal"
@@ -37,6 +38,11 @@ func main() {
 	addr := flag.String("addr", "127.0.0.1:8080", "address to listen on (localhost only by default)")
 	static := flag.String("static", "public", "directory with the dashboard files")
 	flag.Parse()
+
+	// Go's built-in table has no entry for web fonts (Vercel serves them correctly).
+	if err := mime.AddExtensionType(".woff2", "font/woff2"); err != nil {
+		log.Fatal(err)
+	}
 
 	if _, err := os.Stat(*static); err != nil {
 		log.Fatalf("static directory %q not found: %v (run from the project root)", *static, err)
