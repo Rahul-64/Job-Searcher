@@ -1,7 +1,8 @@
-# Not needed in the deployment
+# Not needed in the deployment.
+# Do NOT ignore migrations/*.sql or internal/normalizer/data/*.csv: the Go code
+# embeds them (go:embed), so the build fails if they are missing.
 bin/
 plan/
 .github/
 seeds/
-migrations/*.sql
 *.png
