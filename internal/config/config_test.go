@@ -106,3 +106,19 @@ func TestTargetCountries(t *testing.T) {
 		}
 	}
 }
+
+// A secret pasted into CI often ends with a newline; that must not break the URL.
+func TestLoadTrimsDatabaseURLs(t *testing.T) {
+	t.Setenv("DATABASE_URL", "  postgresql://u:p@host/db?sslmode=require\r\n")
+	t.Setenv("DATABASE_URL_DIRECT", "postgresql://u:p@direct/db\n")
+	c, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.DatabaseURL != "postgresql://u:p@host/db?sslmode=require" {
+		t.Errorf("DatabaseURL not trimmed: %q", c.DatabaseURL)
+	}
+	if c.DatabaseURLDirect != "postgresql://u:p@direct/db" {
+		t.Errorf("DatabaseURLDirect not trimmed: %q", c.DatabaseURLDirect)
+	}
+}
