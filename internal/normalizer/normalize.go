@@ -18,7 +18,8 @@ import (
 // v6: a few missed technical titles (vulnerability, cloud operations, monitoring, forward deployed).
 // v7: Amazon's shorthand (BIE, QAE) and "Applied Science" titles.
 // v8: technicians (e.g. warehouse quality assurance technicians) are not software roles.
-const Version = 8
+// v9: Salesforce's engineering levels (LMTS, SMTS, PMTS, AMTS).
+const Version = 9
 
 // Input is everything the normalizer may use about one posting.
 type Input struct {

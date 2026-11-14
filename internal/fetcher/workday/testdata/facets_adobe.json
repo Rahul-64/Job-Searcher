@@ -1,0 +1,58 @@
+{
+ "total": 247,
+ "jobPostings": [
+  {
+   "title": "Enterprise Sales Account Director - DHS/DOJ",
+   "externalPath": "/job/McLean/Enterprise-Sales-Account-Director---DHS-DOJ_R171389",
+   "locationsText": "3 Locations",
+   "postedOn": "Posted Yesterday",
+   "bulletFields": [
+    "R171389"
+   ]
+  }
+ ],
+ "facets": [
+  {
+   "facetParameter": "locationMainGroup",
+   "values": [
+    {
+     "facetParameter": "locationCountry",
+     "descriptor": "Country",
+     "values": [
+      {
+       "descriptor": "Armenia",
+       "id": "db69b632446c11de98360015c5e6daf6",
+       "count": 2
+      },
+      {
+       "descriptor": "Australia",
+       "id": "d903bb3fedad45039383f6de334ad4db",
+       "count": 4
+      },
+      {
+       "descriptor": "India",
+       "id": "c4f78be1a8f14da0ab49ce1162348a5e",
+       "count": 35
+      }
+     ]
+    },
+    {
+     "facetParameter": "locations",
+     "descriptor": "Locations",
+     "values": [
+      {
+       "descriptor": "Amsterdam",
+       "id": "3ba4ecdf4893100bc84d49a246ad6e2d",
+       "count": 1
+      },
+      {
+       "descriptor": "Atlanta",
+       "id": "3ba4ecdf4893100bc84cd055fcbd6d6a",
+       "count": 1
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

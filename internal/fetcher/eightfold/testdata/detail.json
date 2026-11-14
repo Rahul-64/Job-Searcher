@@ -1,0 +1,54 @@
+{
+ "status": 200,
+ "error": {
+  "message": "",
+  "body": ""
+ },
+ "data": {
+  "id": 1970393557051029,
+  "displayJobId": "200064833",
+  "name": "Consulting Project Management",
+  "locations": [
+   "India, Uttar Pradesh, Noida",
+   "India, Maharashtra, Mumbai",
+   "India, Karnataka, Bangalore"
+  ],
+  "standardizedLocations": [
+   "Noida, UP, IN",
+   "Mumbai, MH, IN",
+   "Bengaluru, KA, IN"
+  ],
+  "postedTs": 1794581139,
+  "stars": 0,
+  "department": "Consulting Project Management",
+  "creationTs": 1793355868,
+  "jobDescription": "<b>Overview</b><br><p>Microsoft Industry Solutions Delivery is a global organization hosting over 6,000 strategic sellers, industry and security experts, elite engineers, world-class data scientists and architects, consultants, and delivery specialists. Together with our partners, we help Microsoft’s most strategic customers worldwide to address their specific challenges and provide comprehensive and industry-specific solutions that meet their unique needs. </p><p> <br>Our organization is at the forefront of innovation, driving value across the entirety of the customers’ digital and AI transformation journey through repeatable and customized cutting-edge solutions powered by Microsoft Cloud and AI. We take pride in embodying Microsoft's mission of empowerment, promoting a growth mindset, inspiring excellence, and fostering a culture of inclusivity where everyone is encouraged to share th",
+  "location": "India, Uttar Pradesh, Noida",
+  "isHot": 0,
+  "workLocationOption": "onsite",
+  "locationFlexibility": null,
+  "atsJobId": "200064833",
+  "positionUrl": "/careers/job/1970393557051029",
+  "publicUrl": "https://apply.careers.microsoft.com/careers/job/1970393557051029",
+  "efcustomTextWorkSite": [
+   "3 days / week in-office"
+  ],
+  "efcustomTextRequiredTravel": [
+   "25-50%"
+  ],
+  "efcustomTextCurrentProfession": [
+   "Consulting Services"
+  ],
+  "efcustomTextTaDisciplineName": [
+   "Consulting Project Management"
+  ],
+  "efcustomTextRoletype": [
+   "Individual Contributor"
+  ],
+  "efcustomTextEmploymentType": [
+   "Full-Time"
+  ],
+  "jdHighlight": []
+ },
+ "metadata": null
+}
