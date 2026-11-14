@@ -34,9 +34,10 @@ type Adapter struct {
 	userAgent string
 }
 
-// New returns an adapter that talks to the real Greenhouse API.
-func New(userAgent string) *Adapter {
-	return NewWithBaseURL(defaultBaseURL, userAgent, &http.Client{Timeout: 90 * time.Second})
+// New returns an adapter for the real Greenhouse API. Pass the polite client
+// from the validator package so robots.txt, rate limits and retries apply.
+func New(userAgent string, client *http.Client) *Adapter {
+	return NewWithBaseURL(defaultBaseURL, userAgent, client)
 }
 
 // NewWithBaseURL is used by tests to point the adapter at a fake server.

@@ -1,6 +1,7 @@
 // Package pipeline wires a source adapter to the database: fetch, convert, sync,
-// and record the run. Phase 2 adds the validator (robots.txt, rate limits,
-// circuit breaker) in front of Fetch and concurrency across sources.
+// and record the run. Politeness (robots.txt, rate limits, retries) is handled
+// inside the HTTP client the adapters are built with; reliability across runs
+// (run lock, circuit breaker, mass-drop guard) is handled here and in the store.
 package pipeline
 
 import (
@@ -8,6 +9,8 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strings"
+	"sync"
 	"time"
 
 	"jobscraper/internal/fetcher"
@@ -16,10 +19,42 @@ import (
 	"jobscraper/internal/store"
 )
 
+// Run statuses reported in an Outcome.
+const (
+	StatusOK        = "ok"
+	StatusPartial   = "partial" // fetched fine, but closing was withheld (see Outcome.Note)
+	StatusFailed    = "failed"
+	StatusSkipped   = "skipped"   // another run of this source is in progress
+	StatusCancelled = "cancelled" // the process was interrupted before this source ran
+)
+
+// DefaultMaxFailures is how many consecutive failed runs disable a source.
+const DefaultMaxFailures = 5
+
 type Runner struct {
-	Store    *store.Store
-	Adapters map[string]fetcher.Adapter // keyed by source kind
-	Log      *slog.Logger
+	Store          *store.Store
+	Adapters       map[string]fetcher.Adapter // keyed by source kind
+	Log            *slog.Logger
+	MaxFailures    int  // 0 means DefaultMaxFailures
+	AllowMassClose bool // override the mass-drop guard
+}
+
+// Outcome is the result of running one source.
+type Outcome struct {
+	Source  store.SourceRow
+	Status  string
+	Result  store.SyncResult
+	Note    string // why a run was partial, skipped or failed
+	Err     error
+	Tripped bool // the circuit breaker disabled the source after this run
+	Took    time.Duration
+}
+
+func (r *Runner) maxFailures() int {
+	if r.MaxFailures > 0 {
+		return r.MaxFailures
+	}
+	return DefaultMaxFailures
 }
 
 func (r *Runner) adapter(kind string) (fetcher.Adapter, error) {
@@ -30,60 +65,127 @@ func (r *Runner) adapter(kind string) (fetcher.Adapter, error) {
 	return a, nil
 }
 
-// EnsureSource makes sure the company and source rows exist for kind:token,
-// resolving the company name from the source itself.
-func (r *Runner) EnsureSource(ctx context.Context, kind, token string) (store.SourceRow, error) {
+// EnsureSource makes sure the company and source rows exist for kind:token.
+//
+// nameOverride is an explicit display name (from the seed file) and wins over
+// everything, also renaming an existing company. Otherwise the adapter's name is
+// used, falling back to a title-cased token. Without an override an existing
+// company keeps its current name.
+func (r *Runner) EnsureSource(ctx context.Context, kind, token, nameOverride string) (store.SourceRow, error) {
 	a, err := r.adapter(kind)
 	if err != nil {
 		return store.SourceRow{}, err
 	}
-	name, err := a.Company(ctx, token)
+	name, err := a.Company(ctx, token) // also verifies the board exists
 	if err != nil {
 		return store.SourceRow{}, fmt.Errorf("resolve %s:%s: %w", kind, token, err)
 	}
-	companyID, err := r.Store.UpsertCompany(ctx, name, token)
+	overwrite := strings.TrimSpace(nameOverride) != ""
+	switch {
+	case overwrite:
+		name = strings.TrimSpace(nameOverride)
+	case strings.TrimSpace(name) == "":
+		name = TitleCase(token)
+	}
+	companyID, err := r.Store.UpsertCompany(ctx, name, token, overwrite)
 	if err != nil {
 		return store.SourceRow{}, fmt.Errorf("upsert company: %w", err)
 	}
 	return r.Store.UpsertSource(ctx, companyID, kind, token, a.BoardURL(token))
 }
 
-// RunSource scrapes one source end to end and records the run.
-func (r *Runner) RunSource(ctx context.Context, src store.SourceRow) (store.SyncResult, error) {
+// TitleCase turns a board token like "mind-tickle" into "Mind Tickle".
+func TitleCase(token string) string {
+	words := strings.FieldsFunc(token, func(r rune) bool { return r == '-' || r == '_' || r == '.' })
+	for i, w := range words {
+		words[i] = strings.ToUpper(w[:1]) + w[1:]
+	}
+	return strings.Join(words, " ")
+}
+
+// RunSource scrapes one source end to end and records the run. It never
+// panics the caller's loop: every failure is returned inside the Outcome.
+func (r *Runner) RunSource(ctx context.Context, src store.SourceRow) Outcome {
 	log := r.Log.With("source", src.String())
+	out := Outcome{Source: src}
 
 	a, err := r.adapter(src.Kind)
 	if err != nil {
-		return store.SyncResult{}, err
+		out.Status, out.Err, out.Note = StatusFailed, err, err.Error()
+		return out
 	}
 	runID, err := r.Store.StartRun(ctx, src.ID)
+	if errors.Is(err, store.ErrAlreadyRunning) {
+		out.Status, out.Note = StatusSkipped, err.Error()
+		log.Warn("skipped", "reason", out.Note)
+		return out
+	}
 	if err != nil {
-		return store.SyncResult{}, fmt.Errorf("start run: %w", err)
+		out.Status, out.Err, out.Note = StatusFailed, fmt.Errorf("start run: %w", err), err.Error()
+		return out
 	}
 
 	start := time.Now()
 	res, runErr := r.fetchAndSync(ctx, a, src)
+	out.Result, out.Took = res, time.Since(start)
 
-	status, msg := "ok", ""
 	switch {
 	case runErr != nil:
-		status, msg = "failed", runErr.Error()
+		out.Status, out.Err, out.Note = StatusFailed, runErr, runErr.Error()
 	case res.SkippedClose:
-		status = "partial"
-		msg = fmt.Sprintf("source returned 0 jobs; kept %d active postings open", res.ActiveBefore)
+		out.Status, out.Note = StatusPartial, res.SkipReason+"; kept all active postings open (use --accept-drop to close them)"
+	default:
+		out.Status = StatusOK
 	}
 
 	// Record the outcome even if ctx was cancelled (e.g. Ctrl-C mid-run).
 	fctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 20*time.Second)
 	defer cancel()
-	if err := r.Store.FinishRun(fctx, runID, src.ID, status, res, msg); err != nil {
+	tripped, err := r.Store.FinishRun(fctx, runID, src.ID, out.Status, res, out.Note, r.maxFailures())
+	if err != nil {
 		log.Error("could not record run result", "err", err)
 	}
+	out.Tripped = tripped
 
-	log.Info("run finished", "status", status, "found", res.Found, "new", res.New,
+	log.Info("run finished", "status", out.Status, "found", res.Found, "new", res.New,
 		"updated", res.Updated, "unchanged", res.Unchanged, "closed", res.Closed,
-		"took", time.Since(start).Round(time.Millisecond))
-	return res, runErr
+		"took", out.Took.Round(time.Millisecond))
+	if tripped {
+		log.Warn("source auto-disabled by circuit breaker", "failures", r.maxFailures())
+	}
+	return out
+}
+
+// RunMany runs sources with at most `concurrency` in flight. A failure in one
+// source never affects another. Per-host politeness is enforced by the HTTP
+// client, so a higher concurrency only helps when sources live on different hosts.
+func (r *Runner) RunMany(ctx context.Context, srcs []store.SourceRow, concurrency int) []Outcome {
+	if concurrency < 1 {
+		concurrency = 1
+	}
+	out := make([]Outcome, len(srcs))
+	sem := make(chan struct{}, concurrency)
+	var wg sync.WaitGroup
+
+	for i, src := range srcs {
+		select {
+		case sem <- struct{}{}:
+		case <-ctx.Done():
+			for j := i; j < len(srcs); j++ {
+				out[j] = Outcome{Source: srcs[j], Status: StatusCancelled, Err: ctx.Err(), Note: "interrupted"}
+			}
+			wg.Wait()
+			return out
+		}
+		wg.Add(1)
+		go func(i int, src store.SourceRow) {
+			defer wg.Done()
+			defer func() { <-sem }()
+			out[i] = r.RunSource(ctx, src)
+		}(i, src)
+	}
+	wg.Wait()
+	return out
 }
 
 func (r *Runner) fetchAndSync(ctx context.Context, a fetcher.Adapter, src store.SourceRow) (store.SyncResult, error) {
@@ -102,17 +204,24 @@ func (r *Runner) fetchAndSync(ctx context.Context, a fetcher.Adapter, src store.
 		}
 		inputs = append(inputs, in)
 	}
-	return r.Store.SyncPostings(ctx, src, inputs)
+	return r.Store.SyncPostings(ctx, src, inputs, store.SyncOptions{AllowMassClose: r.AllowMassClose})
 }
 
 // toInput converts a fetched job into the storage shape, applying the light
-// Phase 1 normalization (full normalization arrives in Phase 3).
+// normalization available before the phase 3 location normalizer.
 func toInput(companyID int64, j fetcher.RawJob) (store.PostingInput, error) {
 	gz, err := raw.Compress(j.Payload)
 	if err != nil {
 		return store.PostingInput{}, fmt.Errorf("compress payload for %s: %w", j.ExternalID, err)
 	}
 	titleNorm := normalizer.NormalizeTitle(j.Title)
+
+	// Prefer the country the source states; otherwise fall back to the text hint.
+	country := normalizer.CountryHint(j.Location)
+	if j.Country != "" {
+		c := strings.ToUpper(j.Country)
+		country = &c
+	}
 	return store.PostingInput{
 		ExternalID:  j.ExternalID,
 		URL:         j.URL,
@@ -125,7 +234,7 @@ func toInput(companyID int64, j fetcher.RawJob) (store.PostingInput, error) {
 			TitleNormalized: titleNorm,
 			Description:     normalizer.HTMLToText(j.DescriptionHTML),
 			LocationRaw:     j.Location,
-			Country:         normalizer.CountryHint(j.Location),
+			Country:         country,
 			Fingerprint:     normalizer.Fingerprint(companyID, titleNorm, j.Location),
 			PostedAt:        j.PostedAt,
 		},

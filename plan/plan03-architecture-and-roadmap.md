@@ -121,11 +121,14 @@ Secrets are never committed. Use a `.env.example` only.
 - **Demo:** `scraper run --source greenhouse:<company>` fills DB; second run adds 0 duplicates
 
 ### Phase 2 — Reliable ingestion
-- [ ] Lever + Ashby adapters
-- [ ] Validator: robots.txt, per-domain rate limiter, retries/backoff, circuit breaker
-- [ ] Scheduler logic: pick due sources, `scrape_runs` stats, closed-job detection
-- [ ] GitHub Actions cron running every N hours
-- **Demo:** unattended runs, run history visible, removed jobs marked closed
+- [x] Lever + Ashby adapters (Lever supplies country; Ashby filters unlisted postings)
+- [x] Validator as a polite HTTP client: robots.txt (RFC 9309, `Crawl-delay` honoured), per-host rate limit, retries with jittered backoff and `Retry-After`
+- [x] Circuit breaker (auto-disable after N consecutive failures), run lock, mass-drop guard
+- [x] `run-due` scheduler logic with a 1-hour tolerance; `sources`, `enable`, `disable` commands
+- [x] GitHub Actions daily cron (`run-due`), manual `due` / `all` dispatch, keep-alive step
+- [x] 26 sources seeded: 16 Greenhouse, 6 Lever, 4 Ashby (6,467 jobs)
+- Findings: Greenhouse robots only blocks `/embed/`; Lever allows all with `Crawl-delay: 1`; Ashby's robots returns 401, which RFC 9309 treats as "no restrictions".
+- **Demo:** unattended runs, run history visible, removed jobs marked closed, a repeat `run-due` finds nothing due
 
 ### Phase 3 — Clean data
 - [ ] Normalizer: India city aliases (seed), experience parser, salary parser, remote detection, title normalization

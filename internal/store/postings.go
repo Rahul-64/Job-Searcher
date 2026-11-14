@@ -37,11 +37,38 @@ type SyncResult struct {
 	Updated   int
 	Unchanged int
 	Closed    int
-	// SkippedClose is set when the source returned nothing but we had active
-	// postings: we refuse to close them all on what is probably a bad response.
+	// SkippedClose is set when closing was withheld because the result looks
+	// wrong (see massDrop); SkipReason says why. Pass SyncOptions.AllowMassClose
+	// to override once a human has confirmed the drop is real.
 	SkippedClose bool
+	SkipReason   string
 	// ActiveBefore is the number of active postings before this sync.
 	ActiveBefore int
+}
+
+// SyncOptions tweaks a sync.
+type SyncOptions struct {
+	// AllowMassClose lets a sync close postings even when the source suddenly
+	// lists far fewer jobs than before.
+	AllowMassClose bool
+}
+
+// massDropMinActive is the smallest board for which a "more than half gone"
+// check is meaningful; tiny boards legitimately swing by large percentages.
+const massDropMinActive = 20
+
+// massDrop reports whether a result looks like a bad response rather than real
+// churn: an empty result for a board that had jobs, or a board of at least
+// massDropMinActive postings losing more than half of them at once. Closing on
+// such a result would wipe good data after a transient source problem.
+func massDrop(activeBefore, found int) (bool, string) {
+	switch {
+	case activeBefore > 0 && found == 0:
+		return true, fmt.Sprintf("source returned 0 jobs but %d postings were active", activeBefore)
+	case activeBefore >= massDropMinActive && found*2 < activeBefore:
+		return true, fmt.Sprintf("source returned %d jobs, down from %d (more than half gone)", found, activeBefore)
+	}
+	return false, ""
 }
 
 type existingPosting struct {
@@ -134,7 +161,7 @@ const (
 // transaction: inserts new postings (and their canonical jobs), updates changed
 // ones, refreshes last_seen on the rest, and marks vanished postings removed.
 // It is idempotent: running it twice with the same input changes nothing.
-func (s *Store) SyncPostings(ctx context.Context, src SourceRow, in []PostingInput) (SyncResult, error) {
+func (s *Store) SyncPostings(ctx context.Context, src SourceRow, in []PostingInput, opts SyncOptions) (SyncResult, error) {
 	in = dedupe(in)
 	res := SyncResult{Found: len(in)}
 
@@ -184,9 +211,10 @@ func (s *Store) SyncPostings(ctx context.Context, src SourceRow, in []PostingInp
 		return res, fmt.Errorf("touch jobs: %w", err)
 	}
 
-	// Anything active that we did NOT see is gone from the source.
-	if len(in) == 0 && res.ActiveBefore > 0 {
-		res.SkippedClose = true
+	// Anything active that we did NOT see is gone from the source, unless the
+	// result looks like a bad response.
+	if drop, why := massDrop(res.ActiveBefore, len(in)); drop && !opts.AllowMassClose {
+		res.SkippedClose, res.SkipReason = true, why
 	} else if err := closeMissing(ctx, tx, src.ID, ids, &res); err != nil {
 		return res, err
 	}

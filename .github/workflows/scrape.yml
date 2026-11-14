@@ -1,14 +1,25 @@
 name: scrape
 
 # Daily scrape. Cron is in UTC: 30 0 * * * = 06:00 AM IST.
+# Scheduled runs only scrape sources that are due (see `scraper run-due`).
 on:
   schedule:
     - cron: "30 0 * * *"
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "due = only sources that are due, all = every enabled source"
+        type: choice
+        options: [due, all]
+        default: due
 
 concurrency:
   group: scrape
   cancel-in-progress: false
+
+permissions:
+  contents: read
+  actions: write # lets the keep-alive step touch this workflow
 
 jobs:
   scrape:
@@ -16,19 +27,43 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
+
+      # Quality gate: unit tests only. No database secrets are exposed to this
+      # step, so the DB integration tests skip themselves.
+      - name: Test
+        run: go test ./...
+
       - name: Build
         run: go build -o scraper ./cmd/scraper
+
       - name: Apply migrations
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           DATABASE_URL_DIRECT: ${{ secrets.DATABASE_URL_DIRECT }}
         run: ./scraper migrate
-      # Phase 2 will replace this with: ./scraper run-due
-      - name: Scrape due sources
+
+      - name: Scrape
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           USER_AGENT: ${{ vars.USER_AGENT }}
-        run: echo "scraping arrives in phase 1/2"
+          MODE: ${{ inputs.mode }}
+        run: |
+          if [ "$MODE" = "all" ]; then
+            ./scraper run --all --concurrency 3
+          else
+            ./scraper run-due --concurrency 3
+          fi
+
+      # Best effort: GitHub disables scheduled workflows after 60 days without
+      # repository activity, and a successful run does not count as activity.
+      # Re-enabling the workflow is the documented way to keep it alive; if the
+      # schedule ever stops, run this workflow manually once from the Actions tab.
+      - name: Keep schedule alive
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow enable scrape.yml || true

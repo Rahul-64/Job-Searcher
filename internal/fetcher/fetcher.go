@@ -21,6 +21,7 @@ type RawJob struct {
 	Title           string
 	Location        string // free text, e.g. "Bengaluru-VTP, India"
 	Department      string
+	Country         string     // ISO 3166 alpha-2 when the source states it (else empty)
 	DescriptionHTML string     // HTML, already entity-decoded
 	PostedAt        *time.Time // first published
 	UpdatedAt       *time.Time
@@ -48,7 +49,8 @@ type Adapter interface {
 	Kind() string
 	// BoardURL is the canonical API URL for a board token (stored in sources.base_url).
 	BoardURL(token string) string
-	// Company returns the human-readable company name for a board token.
+	// Company verifies the board exists (returning ErrBoardNotFound if not) and
+	// returns its display name, or "" when the source does not provide one.
 	Company(ctx context.Context, token string) (string, error)
 	// Fetch returns every job currently listed on the board.
 	Fetch(ctx context.Context, token string) ([]RawJob, error)

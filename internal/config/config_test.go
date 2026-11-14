@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 func TestMigrationURLPrefersDirect(t *testing.T) {
@@ -47,5 +48,36 @@ func TestLoadDotEnvDoesNotOverrideEnvironment(t *testing.T) {
 func TestLoadDotEnvMissingFileIsOK(t *testing.T) {
 	if err := loadDotEnv(filepath.Join(t.TempDir(), "nope")); err != nil {
 		t.Fatalf("missing file should not error: %v", err)
+	}
+}
+
+func TestLoadDefaultsAndValidation(t *testing.T) {
+	t.Setenv("SCRAPE_MIN_INTERVAL", "")
+	t.Setenv("SCRAPE_MAX_FAILURES", "")
+	c, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.MinInterval != time.Second || c.MaxFailures != 5 {
+		t.Errorf("defaults wrong: %v, %d", c.MinInterval, c.MaxFailures)
+	}
+
+	t.Setenv("SCRAPE_MIN_INTERVAL", "2500ms")
+	t.Setenv("SCRAPE_MAX_FAILURES", "9")
+	c, err = Load()
+	if err != nil || c.MinInterval != 2500*time.Millisecond || c.MaxFailures != 9 {
+		t.Errorf("overrides wrong: %+v, %v", c, err)
+	}
+
+	for _, bad := range []struct{ k, v string }{
+		{"SCRAPE_MIN_INTERVAL", "fast"}, {"SCRAPE_MIN_INTERVAL", "-1s"},
+		{"SCRAPE_MAX_FAILURES", "0"}, {"SCRAPE_MAX_FAILURES", "many"},
+	} {
+		t.Setenv("SCRAPE_MIN_INTERVAL", "")
+		t.Setenv("SCRAPE_MAX_FAILURES", "")
+		t.Setenv(bad.k, bad.v)
+		if _, err := Load(); err == nil {
+			t.Errorf("%s=%q should be rejected", bad.k, bad.v)
+		}
 	}
 }
