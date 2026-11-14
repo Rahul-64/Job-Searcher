@@ -83,6 +83,7 @@ type JobSummary struct {
 	FirstSeenAt   time.Time  `json:"first_seen_at"`
 	URL           string     `json:"url"`
 	Snippet       string     `json:"snippet"`
+	EntryLevel    bool       `json:"entry_level"` // computed by entryLevelSQL, the same rule as the filter
 }
 
 // SearchResult is one page of results plus the total number of matches.
@@ -171,6 +172,7 @@ func buildSearch(p SearchParams) (string, []any) {
 		       coalesce((SELECT p.url FROM job_postings p WHERE p.job_id = j.id AND p.removed_at IS NULL
 		                 ORDER BY p.id LIMIT 1), ''),
 		       ` + snippet + `,
+		       ` + entryLevelSQL + `,
 		       count(*) OVER ()
 		FROM jobs j JOIN companies c ON c.id = j.company_id
 		WHERE ` + strings.Join(where, "\n		  AND ") + `
@@ -197,7 +199,7 @@ func (s *Store) SearchJobs(ctx context.Context, p SearchParams) (SearchResult, e
 		)
 		if err := rows.Scan(&j.ID, &j.Title, &j.Company.Name, &j.Company.Slug, &j.City, &j.Region, &j.Country,
 			&j.LocationRaw, &j.LocationCount, &j.RemoteType, &j.Seniority, &j.Employment, &j.ExpMin, &j.ExpMax,
-			&smin, &smax, &scur, &sper, &j.PostedAt, &j.FirstSeenAt, &j.URL, &j.Snippet, &res.Total); err != nil {
+			&smin, &smax, &scur, &sper, &j.PostedAt, &j.FirstSeenAt, &j.URL, &j.Snippet, &j.EntryLevel, &res.Total); err != nil {
 			return SearchResult{}, err
 		}
 		j.Salary = money(smin, smax, scur, sper)
@@ -253,11 +255,11 @@ func (s *Store) GetJob(ctx context.Context, id int64) (*JobDetail, error) {
 		       j.posted_at, j.first_seen_at,
 		       coalesce((SELECT p.url FROM job_postings p WHERE p.job_id = j.id AND p.removed_at IS NULL
 		                 ORDER BY p.id LIMIT 1), ''),
-		       coalesce(j.description, ''), j.closed_at
+		       coalesce(j.description, ''), j.closed_at, `+entryLevelSQL+`
 		FROM jobs j JOIN companies c ON c.id = j.company_id WHERE j.id = $1`, id).
 		Scan(&d.ID, &d.Title, &d.Company.Name, &d.Company.Slug, &d.City, &d.Region, &d.Country,
 			&d.LocationRaw, &d.LocationCount, &d.RemoteType, &d.Seniority, &d.Employment, &d.ExpMin, &d.ExpMax,
-			&smin, &smax, &scur, &sper, &d.PostedAt, &d.FirstSeenAt, &d.URL, &d.Description, &d.ClosedAt)
+			&smin, &smax, &scur, &sper, &d.PostedAt, &d.FirstSeenAt, &d.URL, &d.Description, &d.ClosedAt, &d.EntryLevel)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrNotFound
 	}

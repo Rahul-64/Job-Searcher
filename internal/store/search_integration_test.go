@@ -348,6 +348,22 @@ func TestEntryLevelFilterAndQuickCounts(t *testing.T) {
 		t.Errorf("entry-level total %d, want 3 (jobs 1, 2, 5)", res.Total)
 	}
 
+	// Every job also carries the same verdict as a flag, for the dashboard's tag,
+	// in lists (filtered or not) and in the detail view.
+	all, err := s.SearchJobs(ctx, SearchParams{Company: slug, Limit: 50})
+	if err != nil || all.Total != len(specs) {
+		t.Fatalf("unfiltered search: %d jobs, %v", all.Total, err)
+	}
+	for _, j := range all.Jobs {
+		id := j.URL[len(j.URL)-1:]
+		if j.EntryLevel != want[id] {
+			t.Errorf("list flag for job %s = %v, want %v", id, j.EntryLevel, want[id])
+		}
+		if d, err := s.GetJob(ctx, j.ID); err != nil || d.EntryLevel != want[id] {
+			t.Errorf("detail flag for job %s = %v (err %v), want %v", id, d != nil && d.EntryLevel, err, want[id])
+		}
+	}
+
 	// The quick-view counts use the same rule: seeding 3 entry-level jobs, 1 intern
 	// and 8 new jobs moves the counts by exactly that (compared with the live data,
 	// which no other test touches).
