@@ -95,6 +95,9 @@ func parseSearch(v url.Values) (store.SearchParams, error) {
 	if p.HasSalary, err = boolParam(v, "has_salary"); err != nil {
 		return p, err
 	}
+	if p.EntryLevel, err = boolParam(v, "entry_level"); err != nil {
+		return p, err
+	}
 
 	if s := strings.TrimSpace(v.Get("posted_within")); s != "" {
 		n, err := strconv.Atoi(s)

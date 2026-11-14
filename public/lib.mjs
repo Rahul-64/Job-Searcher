@@ -8,6 +8,7 @@ const LABELS = {
   part_time: "Part-time",
   contract: "Contract",
   intern: "Intern",
+  mid: "Mid-level",
   temporary: "Temporary",
   remote: "Remote",
   hybrid: "Hybrid",
@@ -34,7 +35,7 @@ export function safeHref(url) {
 /** Filter state <-> URL query string. Keys match the API parameters. */
 const FILTER_KEYS = [
   "q", "city", "company", "remote", "seniority", "employment",
-  "exp", "hide_unknown_exp", "posted_within", "has_salary", "sort",
+  "exp", "hide_unknown_exp", "posted_within", "has_salary", "entry_level", "sort",
 ];
 
 export function stateFromSearch(search) {
@@ -154,5 +155,79 @@ export function splitHighlights(snippet) {
   }
   const tail = snippet.slice(last);
   if (tail) out.push({ text: tail, hit: inside });
+  return out;
+}
+
+// ---- quick views and filter chips -------------------------------------------------
+
+/**
+ * Quick views are shortcuts for filters that already exist, so they need no state of
+ * their own: a view is "pressed" when the filters it owns are exactly its values.
+ */
+export const VIEWS = [
+  { id: "all", label: "All jobs", set: {} },
+  {
+    id: "fresher", label: "Fresher and entry level", set: { entry_level: "1" },
+    note: "Not a senior role, and asks for 1 year or less (or is an intern or junior role that states no years).",
+  },
+  { id: "intern", label: "Internships", set: { seniority: "intern" } },
+  { id: "remote", label: "Remote", set: { remote: "remote" } },
+  { id: "new", label: "New this week", set: { posted_within: "7" } },
+];
+
+const VIEW_KEYS = ["entry_level", "seniority", "remote", "posted_within"];
+
+/** The id of the pressed quick view, or null when the filters match none of them. */
+export function activeView(state) {
+  const owned = VIEW_KEYS.filter((k) => state[k]);
+  if (owned.length === 0) return "all";
+  for (const v of VIEWS) {
+    const keys = Object.keys(v.set);
+    if (keys.length === owned.length && keys.every((k) => state[k] === v.set[k])) return v.id;
+  }
+  return null;
+}
+
+/** State with the given quick view applied. Other filters are kept; paging restarts. */
+export function applyView(state, id) {
+  const view = VIEWS.find((v) => v.id === id);
+  const next = { ...state, page: 1 };
+  for (const k of VIEW_KEYS) delete next[k];
+  return Object.assign(next, view ? view.set : {});
+}
+
+/** State without one filter. "view" removes the pressed view; "exp" also drops its companion. */
+export function removeFilter(state, key) {
+  if (key === "view") return applyView(state, "all");
+  const next = { ...state, page: 1 };
+  delete next[key];
+  if (key === "exp") delete next.hide_unknown_exp;
+  return next;
+}
+
+const years = (n) => `${n} year${n === "1" ? "" : "s"}`;
+
+/**
+ * The removable chips above the list: [{key, text}]. companyName maps a company slug
+ * to its display name (the API filters by slug).
+ */
+export function activeFilters(state, companyName = (slug) => slug) {
+  const out = [];
+  const view = activeView(state);
+  if (view && view !== "all") out.push({ key: "view", text: VIEWS.find((v) => v.id === view).label });
+  else if (view === null) {
+    if (state.entry_level) out.push({ key: "entry_level", text: "Fresher and entry level" });
+    if (state.seniority) out.push({ key: "seniority", text: label(state.seniority) });
+    if (state.remote) out.push({ key: "remote", text: label(state.remote) });
+    if (state.posted_within) out.push({ key: "posted_within", text: `Posted in ${state.posted_within === "1" ? "24 hours" : state.posted_within + " days"}` });
+  }
+  if (state.q) out.push({ key: "q", text: `“${state.q}”` });
+  if (state.city) out.push({ key: "city", text: state.city });
+  if (state.company) out.push({ key: "company", text: companyName(state.company) });
+  if (state.exp !== undefined && state.exp !== "") {
+    out.push({ key: "exp", text: `Up to ${years(String(state.exp))}${state.hide_unknown_exp ? ", stated only" : ""}` });
+  }
+  if (state.employment) out.push({ key: "employment", text: label(state.employment) });
+  if (state.has_salary) out.push({ key: "has_salary", text: "Pay shown" });
   return out;
 }

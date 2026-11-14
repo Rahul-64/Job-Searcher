@@ -52,6 +52,19 @@ func TestParseLocation(t *testing.T) {
 		{"Washington, DC", []Place{P("Washington", "District of Columbia", "US")}, false, false},
 		{"Seattle, Washington", []Place{P("Seattle", "Washington", "US")}, false, false},
 		{"Indianapolis, IN", []Place{P("Indianapolis", "Indiana", "US")}, false, false},
+		// Found in real postings: Indiana cities read as India, and words that hid the city.
+		{"Evansville, IN", []Place{P("Evansville", "Indiana", "US")}, false, false},
+		{"Newburgh, IN", []Place{P("Newburgh", "Indiana", "US")}, false, false},
+		{"Lafayette, IN", []Place{P("Lafayette", "Indiana", "US")}, false, false},
+		{"West Lafayette, IN", []Place{P("West Lafayette", "Indiana", "US")}, false, false},
+		{"Bangkok based", []Place{P("Bangkok", "", "TH")}, false, false},
+		{"Bangkok-based", []Place{P("Bangkok", "", "TH")}, false, false},
+		{"Based in Bangkok", []Place{P("Bangkok", "", "TH")}, false, false},
+		{"Pune Based", []Place{P("Pune", "Maharashtra", "IN")}, false, false},
+		{"Yokohama", []Place{P("Yokohama", "", "JP")}, false, false},
+		// "IN" must keep meaning India for Indian cities, which is how some boards write it.
+		{"Bangalore, IN", []Place{P("Bengaluru", "Karnataka", "IN")}, false, false},
+		{"Bangalore, IN ; Pune, IN; Remote", []Place{P("Bengaluru", "Karnataka", "IN"), P("Pune", "Maharashtra", "IN")}, true, false},
 		{"Toronto, Ontario, Canada", []Place{P("Toronto", "Ontario", "CA")}, false, false},
 		{"Austin, TX", []Place{P("Austin", "Texas", "US")}, false, false},
 		{"Dublin, Ohio", []Place{P("Dublin", "Ohio", "US")}, false, false}, // a full region name overrules the default

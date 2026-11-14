@@ -150,8 +150,19 @@ Secrets are never committed. Use a `.env.example` only.
 - [x] Tests: 13 handler tests with a fake store (validation, errors, headers, caching, routing), 4 query-builder safety tests, 2 database integration tests (every filter, sort, paging, detail, facets, source health), 12 dashboard helper tests (Node)
 - Measured (local to Neon in Ohio, from India): search ~550 ms (one round trip), cached aggregates 13 ms; first facets call was 2.5 s before its five queries were made concurrent
 - Decisions: `public/` instead of `web/` (Vercel serves it with no config); "new this week" counts by posting date, not by when we first scraped it
-- **Not verified on Vercel itself** (no deploy from here): Go version acceptance and the rewrite are the two things to check
+- **Deployed and working on Vercel** (Hobby). Two build problems showed up on the first deploy and were fixed: `.vercelignore` excluded the SQL files the code embeds, and `api/index.go` (compiled by Vercel outside the module path) could not import `internal/` — it now calls the public `serverless` package
 - **Demo:** `make serve`, search "kubernetes" in Bengaluru, open a job, follow the link
+
+### Phase 4b — UI revamp and a real fresher view
+Triggered by real use: a fresher search returned almost nothing useful.
+- [x] Measured first: only 17 India jobs stated a minimum of 0–1 years. The old `exp=1` filter also returned every job with *no* stated experience, so the "0–1 year" list was mostly staff and senior roles
+- [x] One definition of **fresher / entry level** in SQL (`entryLevelSQL`): never a senior title; stated minimum ≤ 1 year; or (nothing stated) an intern/junior role. Used by the `entry_level=1` filter, the quick-view counts and a per-job `entry_level` flag, so it exists in one place only
+- [x] New dashboard: sidebar with search, quick views, experience and every filter; list beside a detail pane; light/dark; phone layout with a filter drawer. Inter font self-hosted and Lucide icons inline (the CSP allows no third-party requests); no framework, no build step
+- [x] Data fixes found in the real data (normalizer v3): "Bangkok based" hid the city, Indiana cities (`Evansville, IN`) were read as India, Yokohama was missing. Stored jobs are re-derived from raw payloads; out-of-scope ones are closed by the next scrape
+- [x] 14 more India-hiring sources (Sigmoid, InMobi, Agoda, Toast, HighRadius, Glance, Zenoti, HackerRank, 6sense, Observe.AI, Samsara, FamPay, Snowflake, Gainsight), probed first with the polite client (178 candidates, 48 boards exist, 14 with ≥ 5 India jobs)
+- [x] Tests: 14 handler tests, 5 query-builder tests (the rule is checked in the WHERE clause only), 3 database search tests (including the awkward cases: a senior title stating 1 year, a junior title stating 4, no signal at all), 17 dashboard helper tests, 76 location cases
+- Known limits: the three systems we scrape (Greenhouse, Lever, Ashby) skew senior. More fresher jobs need other sources (Workday, SmartRecruiters, career pages, Naukri/Instahyre) — Phase 6
+- Still open data quality: global "Remote" roles and macro-regions ("EMEA", "N/A") stay unresolved on purpose
 
 ### Phase 5 — Intelligence & alerts
 - [ ] P1 tables live: skills taxonomy + `job_skills`, multi-location

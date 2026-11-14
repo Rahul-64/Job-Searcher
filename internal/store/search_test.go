@@ -22,6 +22,38 @@ func TestBuildSearchDefaults(t *testing.T) {
 	}
 }
 
+// whereOf returns the filtering part of a statement. The SELECT list also carries
+// the entry-level flag for every row, so the tests must not look at the whole text.
+func whereOf(sql string) string {
+	// The SELECT list has sub-queries with their own WHERE, so start at the main FROM.
+	_, w, _ := strings.Cut(sql, "FROM jobs j JOIN companies c ON c.id = j.company_id")
+	w, _, _ = strings.Cut(w, "ORDER BY ")
+	return w
+}
+
+func TestBuildSearchEntryLevel(t *testing.T) {
+	sql, args := buildSearch(SearchParams{EntryLevel: true, Limit: 20})
+	where := whereOf(sql)
+	if !strings.Contains(where, "'intern', 'junior'") || !strings.Contains(where, "exp_min_years <= 1") {
+		t.Errorf("entry-level condition missing from WHERE: %s", where)
+	}
+	for _, senior := range []string{"'senior'", "'lead'", "'staff'", "'principal'", "'director'", "'executive'"} {
+		if !strings.Contains(where, senior) {
+			t.Errorf("entry level must exclude %s", senior)
+		}
+	}
+	selectList, _, _ := strings.Cut(sql, "FROM jobs j")
+	if !strings.Contains(selectList, "'intern', 'junior'") {
+		t.Error("every row should carry the entry-level flag in the SELECT list")
+	}
+	if len(args) != 2 { // only limit and offset: the rule is a constant, not user input
+		t.Errorf("entry level must not add bound values: %v", args)
+	}
+	if sql, _ := buildSearch(SearchParams{Limit: 20}); strings.Contains(whereOf(sql), "'intern', 'junior'") {
+		t.Error("entry-level condition must be absent from WHERE unless asked for")
+	}
+}
+
 func TestBuildSearchBindsEveryValue(t *testing.T) {
 	exp := 5
 	nasty := `x'); DROP TABLE jobs; --`
@@ -80,15 +112,18 @@ func TestBuildSearchRelevanceNeedsAQuery(t *testing.T) {
 
 func TestBuildSearchExperienceSemantics(t *testing.T) {
 	exp := 3
-	loose, _ := buildSearch(SearchParams{Exp: &exp, Limit: 1})
+	sqlLoose, _ := buildSearch(SearchParams{Exp: &exp, Limit: 1})
+	loose := whereOf(sqlLoose)
 	if !strings.Contains(loose, "(j.exp_min_years IS NULL OR j.exp_min_years <=") {
 		t.Errorf("by default jobs that state no requirement stay visible: %s", loose)
 	}
-	strict, _ := buildSearch(SearchParams{Exp: &exp, HideUnknownExp: true, Limit: 1})
+	sqlStrict, _ := buildSearch(SearchParams{Exp: &exp, HideUnknownExp: true, Limit: 1})
+	strict := whereOf(sqlStrict)
 	if strings.Contains(strict, "exp_min_years IS NULL") || !strings.Contains(strict, "j.exp_min_years <=") {
 		t.Errorf("HideUnknownExp must drop unknowns: %s", strict)
 	}
-	none, _ := buildSearch(SearchParams{Limit: 1})
+	sqlNone, _ := buildSearch(SearchParams{Limit: 1})
+	none := whereOf(sqlNone)
 	if strings.Contains(none, "exp_min_years <=") {
 		t.Error("no Exp, no experience clause")
 	}

@@ -11,7 +11,7 @@ import (
 // alter any derived field; `scraper renormalize` then re-derives stored jobs
 // from their raw payloads, without re-scraping.
 // v2: " or " separates locations, "<descriptor> US" resolves to the country, more macro regions.
-const Version = 2
+const Version = 3
 
 // Input is everything the normalizer may use about one posting.
 type Input struct {

@@ -50,16 +50,25 @@ lines to `seeds/sources.txt` and running `make seed`.
 make serve      # http://127.0.0.1:8080  (dashboard + API, localhost only)
 ```
 
-The dashboard (`public/`) is plain HTML and JavaScript with no build step. Search, filter by city,
-company, work arrangement, level, type, posting date and salary, tell it how many years of experience
-you have, and open any job for the full description and a link to apply on the company's site. Filters are
-kept in the URL, so a search can be bookmarked or shared. `#sources` shows the health of every source.
+The dashboard (`public/`) is plain HTML and JavaScript with no build step and no third-party requests
+(the Inter font is served from `public/fonts/`, icons are inline). A sidebar holds search and every filter:
+quick views (all jobs, **fresher and entry level**, internships, remote, new this week), your years of
+experience, location, work arrangement, level, type, company, posting date and pay. The job list sits
+beside a detail pane with the full description and a link to apply on the company's site. Filters are kept
+in the URL, so a search can be bookmarked or shared, and `#sources` shows the health of every source.
+Press `/` to jump to the search box. Light and dark themes follow the system and can be switched.
+
+**Fresher / entry level** is one rule, defined once in SQL (`entryLevelSQL` in `internal/store/search.go`):
+never a senior, lead, staff, principal, director or executive title; if a minimum experience is stated it
+must be 1 year or less; if none is stated the job must be an intern or junior role. Jobs that state nothing
+and carry no junior signal are not guessed to be entry level. The filter, the quick-view counts and the
+per-job `entry_level` flag all use that one definition.
 
 | Endpoint | Purpose |
 |---|---|
-| `GET /api/jobs` | Search. Parameters: `q` (web-search syntax: `go backend`, `"data engineer"`, `-intern`), `city` (aliases work: `blr`), `company`, `remote`, `seniority`, `employment`, `exp`, `hide_unknown_exp`, `posted_within`, `has_salary`, `sort`, `limit` (max 100), `offset` |
+| `GET /api/jobs` | Search. Parameters: `q` (web-search syntax: `go backend`, `"data engineer"`, `-intern`), `city` (aliases work: `blr`), `company`, `remote`, `seniority`, `employment`, `exp`, `hide_unknown_exp`, `entry_level` (1 = fresher / entry level), `posted_within`, `has_salary`, `sort`, `limit` (max 100), `offset`. Each job carries an `entry_level` flag |
 | `GET /api/job?id=` | One job: full description, all locations, every source posting |
-| `GET /api/facets` | Filter options with counts |
+| `GET /api/facets` | Filter options with counts, plus `quick` counts for the quick views |
 | `GET /api/stats` | Totals and last scrape time |
 | `GET /api/sources` | Source health |
 | `GET /api/health` | Database reachable? |
@@ -74,10 +83,10 @@ from third-party sites, so the dashboard only ever inserts it as text (never HTM
 2. Add the environment variable `DATABASE_URL` with Neon's **pooled** connection string (Production and Preview).
 3. Deploy. `vercel.json` rewrites `/api/*` to the single Go function in `api/index.go`; `public/` is served as static files.
 
-**Not yet verified on Vercel itself.** Everything here was tested locally against the real database through
-the same handler the function uses, but the deployment has not been run. Two things to check on the first
-deploy: that Vercel's Go runtime accepts the Go version in `go.mod`, and that the `/api/*` rewrite delivers the
-route (the handler reads it from `?_route=`). The Hobby plan is for non-commercial use.
+Deployed and working on the Hobby plan (which is for non-commercial use). Vercel's Go runtime reads the Go
+version from `go.mod`. It compiles `api/index.go` outside this module's path, so that file may not import
+`internal/` packages directly; it calls the public `serverless` package instead, which does. Do not exclude
+`migrations/*.sql` or `internal/normalizer/data/*.csv` in `.vercelignore`: the code embeds them.
 
 ## India focus and data quality
 
@@ -123,11 +132,12 @@ make migrate-status
 
 ```
 cmd/scraper/     CLI entry point
-api/             Vercel Go functions (phase 4)
+api/             Vercel function entry (a thin wrapper)
+serverless/      public package the Vercel function calls (it may import internal/)
 internal/        config, store, registry, validator, fetcher, parser, normalizer, ...
 migrations/      goose SQL migrations (embedded into the binary)
 seeds/           seed data (skills, India locations, sources)
-web/             dashboard (phase 4)
+public/          dashboard: HTML, CSS, JS, font (no build step)
 .github/         daily scrape workflow (cron, 06:00 IST)
 ```
 

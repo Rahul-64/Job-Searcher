@@ -3,12 +3,14 @@ import assert from "node:assert/strict";
 import {
   label, safeHref, stateFromSearch, searchFromState, apiQuery, pageInfo,
   formatSalary, formatExp, formatLocation, timeAgo, formatCount, splitHighlights,
+  VIEWS, activeView, applyView, removeFilter, activeFilters,
 } from "./lib.mjs";
 
 test("label", () => {
   assert.equal(label("full_time"), "Full-time");
   assert.equal(label("onsite"), "On-site");
   assert.equal(label("senior"), "Senior");
+  assert.equal(label("mid"), "Mid-level");
   assert.equal(label(""), "");
   assert.equal(label(null), "");
 });
@@ -112,4 +114,68 @@ test("splitHighlights turns markers into segments", () => {
   assert.deepEqual(splitHighlights(null), []);
   // markup in the data stays plain text for the caller to insert via textContent
   assert.equal(splitHighlights("⟦<img src=x onerror=alert(1)>⟧")[0].text, "<img src=x onerror=alert(1)>");
+});
+
+test("entry_level travels through the URL and to the API", () => {
+  const state = stateFromSearch("?entry_level=1&q=go");
+  assert.deepEqual(state, { page: 1, q: "go", entry_level: "1" });
+  assert.equal(searchFromState(state), "?q=go&entry_level=1");
+  assert.equal(new URLSearchParams(apiQuery(state)).get("entry_level"), "1");
+});
+
+test("a quick view is pressed exactly when the filters it owns match", () => {
+  assert.equal(activeView({ page: 1 }), "all");
+  assert.equal(activeView({ page: 1, entry_level: "1" }), "fresher");
+  assert.equal(activeView({ page: 1, seniority: "intern" }), "intern");
+  assert.equal(activeView({ page: 1, remote: "remote" }), "remote");
+  assert.equal(activeView({ page: 1, posted_within: "7" }), "new");
+  // filters that no view owns do not unpress "all" or a view
+  assert.equal(activeView({ page: 1, city: "Pune", q: "go", exp: "1" }), "all");
+  assert.equal(activeView({ page: 1, entry_level: "1", city: "Pune" }), "fresher");
+  // a combination, or a value no view uses, presses nothing
+  assert.equal(activeView({ page: 1, entry_level: "1", remote: "remote" }), null);
+  assert.equal(activeView({ page: 1, seniority: "senior" }), null);
+  assert.equal(activeView({ page: 1, remote: "hybrid" }), null);
+  assert.equal(activeView({ page: 1, posted_within: "30" }), null);
+});
+
+test("applyView swaps the view's filters and keeps the others", () => {
+  const start = { page: 4, q: "go", city: "Pune", remote: "remote", posted_within: "7" };
+  const fresher = applyView(start, "fresher");
+  assert.deepEqual(fresher, { page: 1, q: "go", city: "Pune", entry_level: "1" });
+  assert.equal(activeView(fresher), "fresher");
+  assert.deepEqual(applyView(fresher, "intern"), { page: 1, q: "go", city: "Pune", seniority: "intern" });
+  assert.deepEqual(applyView(fresher, "all"), { page: 1, q: "go", city: "Pune" });
+  assert.deepEqual(start, { page: 4, q: "go", city: "Pune", remote: "remote", posted_within: "7" }, "input is not mutated");
+  assert.ok(VIEWS.every((v) => applyView({ page: 1 }, v.id) && activeView(applyView({ page: 1 }, v.id)) === v.id));
+});
+
+test("removeFilter", () => {
+  assert.deepEqual(removeFilter({ page: 3, q: "go", city: "Pune" }, "city"), { page: 1, q: "go" });
+  assert.deepEqual(removeFilter({ page: 2, entry_level: "1", q: "go" }, "view"), { page: 1, q: "go" });
+  assert.deepEqual(removeFilter({ page: 1, exp: "2", hide_unknown_exp: "1" }, "exp"), { page: 1 }, "exp takes its companion with it");
+});
+
+test("activeFilters lists removable chips", () => {
+  assert.deepEqual(activeFilters({ page: 1 }), []);
+  assert.deepEqual(activeFilters({ page: 1, entry_level: "1" }), [{ key: "view", text: "Fresher and entry level" }]);
+  assert.deepEqual(
+    activeFilters({ page: 1, q: "go backend", city: "Pune", company: "okta", exp: "1", hide_unknown_exp: "1", employment: "full_time", has_salary: "1" },
+      (slug) => ({ okta: "Okta" })[slug]),
+    [
+      { key: "q", text: "“go backend”" },
+      { key: "city", text: "Pune" },
+      { key: "company", text: "Okta" },
+      { key: "exp", text: "Up to 1 year, stated only" },
+      { key: "employment", text: "Full-time" },
+      { key: "has_salary", text: "Pay shown" },
+    ]);
+  assert.equal(activeFilters({ page: 1, exp: "3" })[0].text, "Up to 3 years");
+  assert.equal(activeFilters({ page: 1, exp: "0" })[0].text, "Up to 0 years", "zero is a real choice, not 'unset'");
+  // filters that are not a quick view show as their own chips
+  assert.deepEqual(activeFilters({ page: 1, seniority: "senior", remote: "hybrid", posted_within: "30" }), [
+    { key: "seniority", text: "Senior" }, { key: "remote", text: "Hybrid" }, { key: "posted_within", text: "Posted in 30 days" },
+  ]);
+  assert.deepEqual(activeFilters({ page: 1, posted_within: "1", entry_level: "1", remote: "remote" }).map((c) => c.key),
+    ["entry_level", "remote", "posted_within"]);
 });
