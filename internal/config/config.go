@@ -37,8 +37,10 @@ func Load() (*Config, error) {
 		return nil, err
 	}
 	c := &Config{
-		DatabaseURL:       os.Getenv("DATABASE_URL"),
-		DatabaseURLDirect: os.Getenv("DATABASE_URL_DIRECT"),
+		// Trimmed because a pasted CI secret often carries an invisible trailing
+		// newline, which makes the URL unparseable ("cannot parse ...").
+		DatabaseURL:       strings.TrimSpace(os.Getenv("DATABASE_URL")),
+		DatabaseURLDirect: strings.TrimSpace(os.Getenv("DATABASE_URL_DIRECT")),
 		UserAgent:         envOr("USER_AGENT", "jobscraper/0.1 (personal project)"),
 	}
 	var err error
