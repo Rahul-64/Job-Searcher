@@ -44,6 +44,41 @@ lines to `seeds/sources.txt` and running `make seed`.
 | **Mass-drop guard** | If a source returns 0 jobs, or under half of a 20+ job board, nothing is closed. Override with `run --accept-drop` once you have checked. |
 | **Run lock** | Two overlapping runs of one source cannot both start; a crashed run is reclaimed after 30 minutes. |
 
+## API and dashboard
+
+```powershell
+make serve      # http://127.0.0.1:8080  (dashboard + API, localhost only)
+```
+
+The dashboard (`public/`) is plain HTML and JavaScript with no build step. Search, filter by city,
+company, work arrangement, level, type, posting date and salary, tell it how many years of experience
+you have, and open any job for the full description and a link to apply on the company's site. Filters are
+kept in the URL, so a search can be bookmarked or shared. `#sources` shows the health of every source.
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /api/jobs` | Search. Parameters: `q` (web-search syntax: `go backend`, `"data engineer"`, `-intern`), `city` (aliases work: `blr`), `company`, `remote`, `seniority`, `employment`, `exp`, `hide_unknown_exp`, `posted_within`, `has_salary`, `sort`, `limit` (max 100), `offset` |
+| `GET /api/job?id=` | One job: full description, all locations, every source posting |
+| `GET /api/facets` | Filter options with counts |
+| `GET /api/stats` | Totals and last scrape time |
+| `GET /api/sources` | Source health |
+| `GET /api/health` | Database reachable? |
+
+The API is read-only (other methods get 405). Every query value is a bound SQL parameter, bad input gets a
+400 with a clear message, and internal errors return a generic 500 without database details. Job text comes
+from third-party sites, so the dashboard only ever inserts it as text (never HTML) and only links to
+`http(s)` URLs; a Content-Security-Policy forbids inline scripts.
+
+### Deploying to Vercel (free Hobby plan)
+1. In Vercel choose **Add New → Project** and import this GitHub repository. Framework preset **Other**, no build command.
+2. Add the environment variable `DATABASE_URL` with Neon's **pooled** connection string (Production and Preview).
+3. Deploy. `vercel.json` rewrites `/api/*` to the single Go function in `api/index.go`; `public/` is served as static files.
+
+**Not yet verified on Vercel itself.** Everything here was tested locally against the real database through
+the same handler the function uses, but the deployment has not been run. Two things to check on the first
+deploy: that Vercel's Go runtime accepts the Go version in `go.mod`, and that the `/api/*` rewrite delivers the
+route (the handler reads it from `?_route=`). The Hobby plan is for non-commercial use.
+
 ## India focus and data quality
 
 The scraper currently collects **India only** (`TARGET_COUNTRIES=IN`). Every posting's location is

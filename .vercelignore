@@ -1,0 +1,7 @@
+# Not needed in the deployment
+bin/
+plan/
+.github/
+seeds/
+migrations/*.sql
+*.png

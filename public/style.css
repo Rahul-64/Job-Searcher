@@ -1,0 +1,143 @@
+:root {
+  --bg: #f7f8fa;
+  --surface: #ffffff;
+  --text: #1c2430;
+  --muted: #5b6676;
+  --border: #dde2ea;
+  --accent: #2455d6;
+  --accent-text: #ffffff;
+  --chip: #eef2fb;
+  --chip-text: #27408b;
+  --good: #1b7a4b;
+  --warn: #9a5b00;
+  --bad: #b42318;
+  --radius: 10px;
+  color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #12161d;
+    --surface: #1a2029;
+    --text: #e6eaf0;
+    --muted: #9aa5b5;
+    --border: #2c3542;
+    --accent: #6c93ff;
+    --accent-text: #0c1220;
+    --chip: #232c3d;
+    --chip-text: #b9ccff;
+    --good: #55c58a;
+    --warn: #e0a04a;
+    --bad: #ff8a80;
+  }
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+.wrap { max-width: 980px; margin: 0 auto; padding: 0 16px; }
+.muted { color: var(--muted); }
+.small { font-size: 0.85rem; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+a { color: var(--accent); }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+.top { background: var(--surface); border-bottom: 1px solid var(--border); }
+.top .wrap { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 20px; padding-top: 14px; padding-bottom: 12px; }
+.top h1 { font-size: 1.25rem; margin: 0; }
+.top h1 a { color: var(--text); text-decoration: none; }
+.top p { margin: 0; font-size: 0.9rem; flex: 1 1 240px; }
+.top nav { display: flex; gap: 16px; font-size: 0.95rem; }
+.top nav a { text-decoration: none; padding: 2px 0; border-bottom: 2px solid transparent; }
+.top nav a[aria-current="page"] { border-color: var(--accent); font-weight: 600; }
+
+main { padding-top: 18px; padding-bottom: 48px; }
+
+.search { display: flex; gap: 8px; }
+.search input { flex: 1; min-width: 0; }
+input, select, button {
+  font: inherit; color: inherit; background: var(--surface);
+  border: 1px solid var(--border); border-radius: 8px; padding: 9px 12px;
+}
+input[type="search"] { padding: 11px 14px; }
+button { cursor: pointer; }
+button[type="submit"], .apply {
+  background: var(--accent); color: var(--accent-text); border-color: var(--accent); font-weight: 600;
+}
+button.link { background: none; border: none; color: var(--accent); padding: 4px 2px; text-decoration: underline; }
+
+.filters {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(165px, 1fr));
+  gap: 10px 12px; margin: 14px 0 6px; align-items: end;
+}
+.filters label { display: flex; flex-direction: column; gap: 3px; font-size: 0.8rem; color: var(--muted); }
+.filters select, .filters input[type="number"] { color: var(--text); width: 100%; }
+.filters label.check { flex-direction: row; align-items: center; gap: 8px; color: var(--text); font-size: 0.9rem; align-self: center; }
+.filters label.check input { width: auto; }
+
+.count { margin: 14px 0 8px; color: var(--muted); font-size: 0.92rem; min-height: 1.4em; }
+
+.results { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 14px 16px; display: grid; gap: 4px;
+}
+.card h3 { margin: 0; font-size: 1.05rem; }
+.card h3 button { all: unset; cursor: pointer; color: var(--accent); }
+.card h3 button:hover { text-decoration: underline; }
+.card h3 button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
+.card .line { color: var(--muted); font-size: 0.92rem; }
+.card .snippet { color: var(--muted); font-size: 0.9rem; margin: 2px 0 0; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.snippet mark { background: color-mix(in srgb, var(--accent) 22%, transparent); color: inherit; border-radius: 3px; padding: 0 2px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 0; padding: 0; list-style: none; }
+.chip {
+  background: var(--chip); color: var(--chip-text); border-radius: 999px;
+  padding: 2px 10px; font-size: 0.8rem; white-space: nowrap;
+}
+.chip.money { background: transparent; border: 1px solid var(--good); color: var(--good); }
+
+.empty { text-align: center; color: var(--muted); padding: 36px 8px; }
+.empty.error { color: var(--bad); }
+
+.pager { display: flex; justify-content: center; align-items: center; gap: 16px; margin-top: 20px; }
+.pager button:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
+table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
+th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+th { color: var(--muted); font-weight: 600; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.03em; }
+tr:last-child td { border-bottom: none; }
+td.num { text-align: right; font-variant-numeric: tabular-nums; }
+.ok { color: var(--good); } .off { color: var(--bad); font-weight: 600; } .partial { color: var(--warn); }
+
+dialog {
+  width: min(760px, calc(100% - 24px)); max-height: calc(100% - 32px);
+  border: 1px solid var(--border); border-radius: 14px; padding: 0;
+  background: var(--surface); color: var(--text);
+}
+dialog::backdrop { background: rgba(10, 14, 20, 0.55); }
+dialog article { padding: 20px 22px 24px; position: relative; }
+dialog h2 { margin: 0 36px 4px 0; font-size: 1.3rem; }
+dialog h3 { margin: 18px 0 6px; font-size: 1rem; }
+dialog p { margin: 6px 0; }
+.close {
+  position: absolute; top: 10px; right: 12px; width: 36px; height: 36px; padding: 0;
+  font-size: 1.5rem; line-height: 1; border-radius: 50%;
+}
+.apply { display: inline-block; padding: 10px 16px; border-radius: 8px; text-decoration: none; }
+.desc { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 0.95rem; }
+#job-places ul { margin: 4px 0; padding-left: 20px; }
+
+@media (max-width: 560px) {
+  .search { flex-direction: column; }
+  .top .wrap { flex-direction: column; align-items: flex-start; }
+  .top p { flex: none; } /* in a column, flex-basis would become a 240px-tall gap */
+}
+@media (prefers-reduced-motion: no-preference) {
+  .card { transition: border-color 0.15s; }
+  .card:hover { border-color: var(--accent); }
+}
