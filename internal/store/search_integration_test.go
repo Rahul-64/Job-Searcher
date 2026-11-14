@@ -381,3 +381,68 @@ func TestEntryLevelFilterAndQuickCounts(t *testing.T) {
 		t.Errorf("new-this-week count moved by %d, want %d", d, len(specs))
 	}
 }
+
+// The role filter and its counts, against the real SQL.
+func TestRoleFilterAndCounts(t *testing.T) {
+	ctx, s, src, _ := newEnv(t, "role")
+	const slug = "zz-itest-role"
+	before, err := s.Facets(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	count := func(fvs []FacetValue, v string) int {
+		for _, f := range fvs {
+			if f.Value == v {
+				return f.Count
+			}
+		}
+		return 0
+	}
+
+	roles := []*string{sp("software"), sp("software"), sp("ai_data"), sp("qa"), nil}
+	var in []PostingInput
+	for i, r := range roles {
+		spec := jobSpec{id: string(rune('1' + i)), title: "Role test " + string(rune('A'+i)), desc: "role test", posted: time.Now()}
+		p := spec.posting()
+		p.Job.RoleFamily = r
+		in = append(in, p)
+	}
+	if res, err := s.SyncPostings(ctx, src, in, SyncOptions{}); err != nil || res.New != len(roles) {
+		t.Fatalf("seed: %+v, %v", res, err)
+	}
+
+	total := func(role string) int {
+		r, err := s.SearchJobs(ctx, SearchParams{Company: slug, Role: role, Limit: 50})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return r.Total
+	}
+	if got := total(""); got != 5 {
+		t.Errorf("no role filter: %d jobs, want 5", got)
+	}
+	for role, want := range map[string]int{RoleTech: 4, "software": 2, "ai_data": 1, "qa": 1, "infra_security": 0} {
+		if got := total(role); got != want {
+			t.Errorf("role=%s: %d jobs, want %d", role, got, want)
+		}
+	}
+
+	r, err := s.SearchJobs(ctx, SearchParams{Company: slug, Role: "ai_data", Limit: 5})
+	if err != nil || len(r.Jobs) != 1 || r.Jobs[0].RoleFamily == nil || *r.Jobs[0].RoleFamily != "ai_data" {
+		t.Errorf("a job should carry its role family: %+v, %v", r.Jobs, err)
+	}
+
+	// Counts move by exactly what was seeded.
+	after, err := s.Facets(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if d := after.Quick.Tech - before.Quick.Tech; d != 4 {
+		t.Errorf("tech count moved by %d, want 4", d)
+	}
+	for role, want := range map[string]int{"software": 2, "ai_data": 1, "qa": 1} {
+		if d := count(after.Roles, role) - count(before.Roles, role); d != want {
+			t.Errorf("%s count moved by %d, want %d", role, d, want)
+		}
+	}
+}

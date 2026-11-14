@@ -279,6 +279,7 @@ func jobFields(companyID int64, j fetcher.RawJob) store.JobFields {
 		EmploymentType:  strPtr(n.EmploymentType),
 		ExpMin:          n.ExpMin,
 		ExpMax:          n.ExpMax,
+		RoleFamily:      strPtr(n.RoleFamily),
 		NormVersion:     n.Version,
 	}
 	for _, p := range n.Places {

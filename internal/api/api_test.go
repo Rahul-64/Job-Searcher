@@ -112,6 +112,18 @@ func TestJobsHappyPath(t *testing.T) {
 	}
 }
 
+func TestJobsRoleParameter(t *testing.T) {
+	for query, want := range map[string]string{"": "", "role=tech": "tech", "role=Software": "software", "role=ai_data": "ai_data", "role=infra_security": "infra_security", "role=qa": "qa"} {
+		f := &fakeStore{}
+		if rec := do(newTestServer(f), "GET", "/api/jobs?"+query); rec.Code != 200 {
+			t.Fatalf("%q: status %d", query, rec.Code)
+		}
+		if f.lastSearch.Role != want {
+			t.Errorf("%q: Role = %q, want %q", query, f.lastSearch.Role, want)
+		}
+	}
+}
+
 func TestJobsEntryLevelParameter(t *testing.T) {
 	for query, want := range map[string]bool{"": false, "entry_level=1": true, "entry_level=true": true, "entry_level=0": false} {
 		f := &fakeStore{}
@@ -154,6 +166,7 @@ func TestJobsRejectsBadParameters(t *testing.T) {
 		"has_salary=maybe":                "has_salary",
 		"hide_unknown_exp=maybe":          "hide_unknown_exp",
 		"entry_level=maybe":               "entry_level",
+		"role=wizard":                     "role",
 		"q=" + strings.Repeat("a", 201):   "q",
 		"city=" + strings.Repeat("a", 61): "city",
 	}

@@ -33,6 +33,7 @@ type JobFields struct {
 	SalaryMin, SalaryMax  *float64
 	SalaryCurrency        *string
 	SalaryPeriod          *string
+	RoleFamily            *string // software | ai_data | infra_security | qa; nil for any other job
 
 	NormVersion int
 	Places      []Place // all places, primary first
@@ -170,7 +171,7 @@ func derivedArgs(j JobFields) []any {
 		j.Title, j.TitleNormalized, j.Description, j.LocationRaw,
 		j.City, j.Region, j.Country, j.RemoteType, j.Seniority, j.EmploymentType,
 		j.ExpMin, j.ExpMax, j.SalaryMin, j.SalaryMax, j.SalaryCurrency, j.SalaryPeriod,
-		j.Fingerprint, j.PostedAt, j.NormVersion,
+		j.Fingerprint, j.PostedAt, j.NormVersion, j.RoleFamily,
 	}
 }
 
@@ -179,14 +180,14 @@ const (
 		INSERT INTO jobs (company_id, title, title_normalized, description, location_raw,
 		                  city, region, country, remote_type, seniority, employment_type,
 		                  exp_min_years, exp_max_years, salary_min, salary_max, salary_currency, salary_period,
-		                  fingerprint, posted_at, norm_version)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)
+		                  fingerprint, posted_at, norm_version, role_family)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21)
 		RETURNING id`
 	updateJobSQL = `
 		UPDATE jobs SET title=$2, title_normalized=$3, description=$4, location_raw=$5,
 		  city=$6, region=$7, country=$8, remote_type=$9, seniority=$10, employment_type=$11,
 		  exp_min_years=$12, exp_max_years=$13, salary_min=$14, salary_max=$15,
-		  salary_currency=$16, salary_period=$17, fingerprint=$18, posted_at=$19, norm_version=$20,
+		  salary_currency=$16, salary_period=$17, fingerprint=$18, posted_at=$19, norm_version=$20, role_family=$21,
 		  last_seen_at = now(), closed_at = NULL
 		WHERE id = $1`
 	insertPostingSQL = `
