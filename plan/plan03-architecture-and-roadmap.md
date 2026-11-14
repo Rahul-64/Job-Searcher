@@ -112,9 +112,12 @@ Secrets are never committed. Use a `.env.example` only.
 - **Demo:** `scraper migrate` creates P0 tables on Neon
 
 ### Phase 1 — Vertical slice (Greenhouse)
-- [ ] Greenhouse adapter, 10 seed companies (India-hiring)
-- [ ] Upsert `job_postings` + `posting_raw` (gzip), idempotent
-- [ ] Minimal `jobs` creation (1 posting → 1 job)
+- [x] Greenhouse adapter, 16 seed companies (India-hiring) — `seeds/sources.txt`
+- [x] Upsert `job_postings` + `posting_raw` (gzip), idempotent
+- [x] Minimal `jobs` creation (1 posting → 1 job)
+- [x] `seed`, `run --source`, `run --all`, `stats` commands
+- [x] Closed-job detection, with a guard against closing everything when a board returns 0 jobs
+- Note: used plain pgx queries instead of sqlc (about a dozen queries; sqlc deferred); migration 0002 made `jobs.country` nullable until the Phase 3 normalizer
 - **Demo:** `scraper run --source greenhouse:<company>` fills DB; second run adds 0 duplicates
 
 ### Phase 2 — Reliable ingestion

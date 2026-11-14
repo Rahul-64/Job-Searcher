@@ -19,6 +19,19 @@ go run ./cmd/scraper migrate          # create the P0 tables
 go run ./cmd/scraper migrate-status   # confirm
 ```
 
+## Scraping (Phase 1: Greenhouse)
+
+```powershell
+make seed                          # register the boards in seeds/sources.txt
+make run SOURCE=greenhouse:groww   # scrape one board
+make run-all                       # scrape every enabled board
+make stats                         # counts, per-source status, database size
+```
+
+Re-running is safe: unchanged jobs are left alone, changed jobs are updated, and jobs that
+disappear from a board are marked closed. If a board suddenly returns 0 jobs, nothing is closed.
+Add companies by appending `greenhouse:<token>` lines to `seeds/sources.txt` and running `make seed`.
+
 ## Make targets
 
 A [Makefile](Makefile) wraps the common commands. On this Windows machine the binary is
