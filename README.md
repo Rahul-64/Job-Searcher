@@ -19,7 +19,20 @@ go run ./cmd/scraper migrate          # create the P0 tables
 go run ./cmd/scraper migrate-status   # confirm
 ```
 
-## Scraping (Greenhouse, Lever, Ashby)
+## Scraping (Greenhouse, Lever, Ashby, Amazon, Atlassian)
+
+| Kind | Source | Token | Notes |
+|---|---|---|---|
+| `greenhouse`, `lever`, `ashby` | each company's public job board API | the board name | most startups and scale-ups |
+| `amazon` | amazon.jobs search API | an ISO alpha-3 country code (`IND`) | only technical categories are fetched (software, applied science, data, BI, research, systems/security engineering, database administration): India lists about 2,000 jobs, most of them warehouse, HR and finance |
+| `atlassian` | one JSON listing of every opening | `listings` | all openings worldwide; the pipeline keeps India's |
+
+Every adapter goes through the same polite client (robots.txt, rate limits, retries), keeps each job's
+original payload, and re-derives from it without re-scraping.
+
+**Not scraped on purpose:** LinkedIn and Naukri (their terms forbid scraping and they block identified bots;
+the only way in would be disguising the scraper), Meta (its robots.txt prohibits automated collection),
+Google (robots.txt disallows paging through results) and Uber (robots.txt disallows its `/api/`).
 
 ```powershell
 make seed                          # register the sources in seeds/sources.txt
@@ -58,6 +71,13 @@ beside a detail pane with the full description and a link to apply on the compan
 in the URL, so a search can be bookmarked or shared, and `#sources` shows the health of every source.
 Press `/` to jump to the search box. Light and dark themes follow the system and can be switched.
 
+**Role** (software engineering; AI, ML & data; DevOps, cloud & security; QA & test, or all of them as
+"Software & AI roles") is derived from the job title, with the department as a tie-breaker for a bare
+"Engineer" (`internal/normalizer/role.go`). It is deliberately conservative: a title that is not clearly
+technical gets no role rather than a guess, so product managers, solutions and support engineers, sales
+engineers and developer advocates are not counted as software jobs. Departments are team names ("Cloud Data
+Path"), so they can show a job is *not* technical (Sales, Support) but never prove that it is.
+
 **Fresher / entry level** is one rule, defined once in SQL (`entryLevelSQL` in `internal/store/search.go`):
 never a senior, lead, staff, principal, director or executive title; if a minimum experience is stated it
 must be 1 year or less; if none is stated the job must be an intern or junior role. Jobs that state nothing
@@ -66,9 +86,9 @@ per-job `entry_level` flag all use that one definition.
 
 | Endpoint | Purpose |
 |---|---|
-| `GET /api/jobs` | Search. Parameters: `q` (web-search syntax: `go backend`, `"data engineer"`, `-intern`), `city` (aliases work: `blr`), `company`, `remote`, `seniority`, `employment`, `exp`, `hide_unknown_exp`, `entry_level` (1 = fresher / entry level), `posted_within`, `has_salary`, `sort`, `limit` (max 100), `offset`. Each job carries an `entry_level` flag |
+| `GET /api/jobs` | Search. Parameters: `q` (web-search syntax: `go backend`, `"data engineer"`, `-intern`), `city` (aliases work: `blr`), `company`, `remote`, `seniority`, `employment`, `exp`, `hide_unknown_exp`, `entry_level` (1 = fresher / entry level), `role` (`tech`, `software`, `ai_data`, `infra_security`, `qa`), `posted_within`, `has_salary`, `sort`, `limit` (max 100), `offset`. Each job carries `entry_level` and `role_family` |
 | `GET /api/job?id=` | One job: full description, all locations, every source posting |
-| `GET /api/facets` | Filter options with counts, plus `quick` counts for the quick views |
+| `GET /api/facets` | Filter options with counts, plus `roles` and `quick` counts for the role filter and quick views |
 | `GET /api/stats` | Totals and last scrape time |
 | `GET /api/sources` | Source health |
 | `GET /api/health` | Database reachable? |
