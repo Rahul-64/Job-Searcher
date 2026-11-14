@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"reflect"
 	"testing"
 
 	"jobscraper/internal/fetcher"
@@ -73,9 +74,22 @@ func TestFetchParsesAndFiltersUnlisted(t *testing.T) {
 		t.Errorf("description/url wrong: %+v", j)
 	}
 
+	if j.Remote != "Hybrid" || j.Employment != "FullTime" {
+		t.Errorf("hints: remote %q employment %q", j.Remote, j.Employment)
+	}
+	if j.SalaryMin != 2400000 || j.SalaryMax != 3600000 || j.SalaryCurrency != "INR" || j.SalaryPeriod != "year" {
+		t.Errorf("structured salary must come from the Salary component: %v-%v %s/%s", j.SalaryMin, j.SalaryMax, j.SalaryCurrency, j.SalaryPeriod)
+	}
+
 	us := jobs[1]
-	if us.Country != "" {
-		t.Errorf("non-India country is left for the phase 3 normalizer, got %q", us.Country)
+	if us.Remote != "remote" {
+		t.Errorf("isRemote without a workplace type should read as remote, got %q", us.Remote)
+	}
+	if us.SalaryMax != 0 {
+		t.Error("no compensation means no structured salary")
+	}
+	if us.Country != "US" {
+		t.Errorf("country from address should resolve via the country table, got %q", us.Country)
 	}
 	if us.PostedAt != nil {
 		t.Error("garbage timestamp should become nil")
@@ -106,5 +120,26 @@ func TestErrors(t *testing.T) {
 		if _, err := a.Fetch(context.Background(), bad); err == nil {
 			t.Errorf("token %q should be rejected", bad)
 		}
+	}
+}
+
+func TestParseMatchesFetchAndReportsUnlisted(t *testing.T) {
+	srv := fakeServer(t)
+	a := NewWithBaseURL(srv.URL, "test", srv.Client())
+	jobs, err := a.Fetch(context.Background(), "acme")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range jobs {
+		got, err := a.Parse(want.Payload)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !reflect.DeepEqual(got, want) {
+			t.Errorf("Parse differs from Fetch for %s:\n got  %+v\n want %+v", want.ExternalID, got, want)
+		}
+	}
+	if _, err := a.Parse([]byte(`{"id":"x","title":"T","isListed":false}`)); err == nil {
+		t.Error("an unlisted posting must not parse into a job")
 	}
 }

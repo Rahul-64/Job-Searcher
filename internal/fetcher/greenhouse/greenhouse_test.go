@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -79,6 +80,14 @@ func TestFetchParsesJobs(t *testing.T) {
 		t.Errorf("Payload should hold the original job JSON, got %q", j.Payload)
 	}
 
+	// Company-specific metadata: only the names we understand are used.
+	if j.Employment != "Full-time" || j.Remote != "Hybrid" {
+		t.Errorf("metadata hints: employment %q remote %q", j.Employment, j.Remote)
+	}
+	if jobs[1].Employment != "" || jobs[1].Remote != "" {
+		t.Errorf("a posting without metadata must have no hints: %+v", jobs[1])
+	}
+
 	// Bad/missing timestamps become nil rather than failing the run.
 	if jobs[1].UpdatedAt != nil || jobs[1].PostedAt != nil {
 		t.Error("unparseable timestamps should be nil")
@@ -129,5 +138,28 @@ func TestErrors(t *testing.T) {
 		if _, err := a.Fetch(context.Background(), bad); err == nil {
 			t.Errorf("token %q should be rejected", bad)
 		}
+	}
+}
+
+// Parse must rebuild exactly what Fetch produced from the stored payload; that is
+// what makes re-deriving jobs without re-scraping trustworthy.
+func TestParseMatchesFetch(t *testing.T) {
+	srv := fakeServer(t)
+	a := NewWithBaseURL(srv.URL, "test-agent", srv.Client())
+	jobs, err := a.Fetch(context.Background(), "acme")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range jobs {
+		got, err := a.Parse(want.Payload)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !reflect.DeepEqual(got, want) {
+			t.Errorf("Parse differs from Fetch for %s:\n got  %+v\n want %+v", want.ExternalID, got, want)
+		}
+	}
+	if _, err := a.Parse([]byte(`{"id":0}`)); err == nil {
+		t.Error("a payload without id/title must be rejected")
 	}
 }

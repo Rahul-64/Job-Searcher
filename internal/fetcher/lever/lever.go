@@ -98,11 +98,18 @@ func (a *Adapter) Company(ctx context.Context, token string) (string, error) {
 }
 
 type leverJob struct {
-	ID         string `json:"id"`
-	Text       string `json:"text"`
-	HostedURL  string `json:"hostedUrl"`
-	CreatedAt  int64  `json:"createdAt"` // milliseconds since epoch
-	Country    string `json:"country"`
+	ID          string `json:"id"`
+	Text        string `json:"text"`
+	HostedURL   string `json:"hostedUrl"`
+	CreatedAt   int64  `json:"createdAt"` // milliseconds since epoch
+	Country     string `json:"country"`
+	Workplace   string `json:"workplaceType"`
+	SalaryRange *struct {
+		Min      float64 `json:"min"`
+		Max      float64 `json:"max"`
+		Currency string  `json:"currency"`
+		Interval string  `json:"interval"`
+	} `json:"salaryRange"`
 	Desc       string `json:"description"`
 	DescBody   string `json:"descriptionBody"`
 	Additional string `json:"additional"`
@@ -115,6 +122,7 @@ type leverJob struct {
 		AllLocations []string `json:"allLocations"`
 		Team         string   `json:"team"`
 		Department   string   `json:"department"`
+		Commitment   string   `json:"commitment"`
 	} `json:"categories"`
 }
 
@@ -134,32 +142,65 @@ func (a *Adapter) Fetch(ctx context.Context, token string) ([]fetcher.RawJob, er
 
 	jobs := make([]fetcher.RawJob, 0, len(items))
 	for i, raw := range items {
-		var j leverJob
-		if err := json.Unmarshal(raw, &j); err != nil {
-			return nil, fmt.Errorf("decode posting #%d: %w", i, err)
-		}
-		if j.ID == "" || strings.TrimSpace(j.Text) == "" {
-			return nil, fmt.Errorf("posting #%d is missing id or title", i)
-		}
-		rj := fetcher.RawJob{
-			ExternalID:      j.ID,
-			URL:             j.HostedURL,
-			Title:           strings.TrimSpace(j.Text),
-			Location:        location(j),
-			Department:      firstNonEmpty(j.Categories.Team, j.Categories.Department),
-			DescriptionHTML: description(j),
-			Payload:         append([]byte(nil), raw...),
-		}
-		if countryRe.MatchString(j.Country) {
-			rj.Country = strings.ToUpper(j.Country)
-		}
-		if j.CreatedAt > 0 {
-			t := time.UnixMilli(j.CreatedAt).UTC()
-			rj.PostedAt = &t
+		rj, err := parseJob(raw)
+		if err != nil {
+			return nil, fmt.Errorf("posting #%d: %w", i, err)
 		}
 		jobs = append(jobs, rj)
 	}
 	return jobs, nil
+}
+
+// Parse rebuilds a RawJob from one posting's original JSON.
+func (a *Adapter) Parse(payload []byte) (fetcher.RawJob, error) { return parseJob(payload) }
+
+func parseJob(raw []byte) (fetcher.RawJob, error) {
+	var j leverJob
+	if err := json.Unmarshal(raw, &j); err != nil {
+		return fetcher.RawJob{}, fmt.Errorf("decode posting: %w", err)
+	}
+	if j.ID == "" || strings.TrimSpace(j.Text) == "" {
+		return fetcher.RawJob{}, fmt.Errorf("posting is missing id or title")
+	}
+	rj := fetcher.RawJob{
+		ExternalID:      j.ID,
+		URL:             j.HostedURL,
+		Title:           strings.TrimSpace(j.Text),
+		Location:        location(j),
+		Department:      firstNonEmpty(j.Categories.Team, j.Categories.Department),
+		DescriptionHTML: description(j),
+		Remote:          j.Workplace,
+		Employment:      strings.TrimSpace(j.Categories.Commitment),
+		Payload:         append([]byte(nil), raw...),
+	}
+	if countryRe.MatchString(j.Country) {
+		rj.Country = strings.ToUpper(j.Country)
+	}
+	if j.CreatedAt > 0 {
+		t := time.UnixMilli(j.CreatedAt).UTC()
+		rj.PostedAt = &t
+	}
+	// Lever sends {"min":0,"max":0} for "no range", which must stay empty.
+	if sr := j.SalaryRange; sr != nil && sr.Max > 0 && sr.Min > 0 && sr.Max >= sr.Min {
+		rj.SalaryMin, rj.SalaryMax = sr.Min, sr.Max
+		rj.SalaryCurrency = strings.ToUpper(sr.Currency)
+		rj.SalaryPeriod = periodFrom(sr.Interval)
+	}
+	return rj, nil
+}
+
+// periodFrom maps Lever's interval ("per-year-salary", "per-hour-wage", ...) to year/month/hour.
+func periodFrom(interval string) string {
+	l := strings.ToLower(interval)
+	switch {
+	case strings.Contains(l, "hour"):
+		return "hour"
+	case strings.Contains(l, "month"):
+		return "month"
+	case strings.Contains(l, "year"), strings.Contains(l, "annual"):
+		return "year"
+	}
+	return ""
 }
 
 // location prefers the primary location and appends other distinct ones.

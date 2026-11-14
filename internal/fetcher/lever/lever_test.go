@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -82,6 +83,12 @@ func TestFetchParsesPostings(t *testing.T) {
 	if strings.Contains(j.DescriptionHTML, "Empty section") {
 		t.Error("empty list sections should be skipped")
 	}
+	if j.Remote != "onsite" || j.Employment != "Full Time Employee" {
+		t.Errorf("hints: remote %q employment %q", j.Remote, j.Employment)
+	}
+	if j.SalaryMin != 1200000 || j.SalaryMax != 1800000 || j.SalaryCurrency != "INR" || j.SalaryPeriod != "year" {
+		t.Errorf("structured salary: %v-%v %s/%s", j.SalaryMin, j.SalaryMax, j.SalaryCurrency, j.SalaryPeriod)
+	}
 	if !strings.Contains(string(j.Payload), `"workplaceType": "onsite"`) {
 		t.Error("payload should keep the original JSON")
 	}
@@ -89,7 +96,7 @@ func TestFetchParsesPostings(t *testing.T) {
 	// Sparse posting: fallbacks, no timestamp, no country.
 	s := jobs[1]
 	if s.DescriptionHTML != "<p>Fallback body</p>" || s.Department != "Design" ||
-		s.PostedAt != nil || s.Country != "" || s.Location != "" {
+		s.PostedAt != nil || s.Country != "" || s.Location != "" || s.SalaryMax != 0 {
 		t.Errorf("sparse posting handled wrongly: %+v", s)
 	}
 }
@@ -123,6 +130,24 @@ func TestErrors(t *testing.T) {
 	for _, bad := range []string{"", "a/b", "../x", "a b", "a?b"} {
 		if _, err := a.Fetch(context.Background(), bad); err == nil {
 			t.Errorf("token %q should be rejected", bad)
+		}
+	}
+}
+
+func TestParseMatchesFetch(t *testing.T) {
+	srv := fakeServer(t)
+	a := NewWithBaseURL(srv.URL, "test", srv.Client())
+	jobs, err := a.Fetch(context.Background(), "acme")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range jobs {
+		got, err := a.Parse(want.Payload)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !reflect.DeepEqual(got, want) {
+			t.Errorf("Parse differs from Fetch for %s:\n got  %+v\n want %+v", want.ExternalID, got, want)
 		}
 	}
 }

@@ -9,6 +9,7 @@ package ashby
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -103,7 +104,21 @@ type ashbyJob struct {
 	SecondaryLocations []struct {
 		Location string `json:"location"`
 	} `json:"secondaryLocations"`
-	PublishedAt     string `json:"publishedAt"`
+	PublishedAt    string `json:"publishedAt"`
+	EmploymentType string `json:"employmentType"`
+	WorkplaceType  string `json:"workplaceType"`
+	IsRemote       *bool  `json:"isRemote"`
+	Compensation   struct {
+		Tiers []struct {
+			Components []struct {
+				Type     string  `json:"compensationType"`
+				Currency string  `json:"currencyCode"`
+				Interval string  `json:"interval"`
+				Min      float64 `json:"minValue"`
+				Max      float64 `json:"maxValue"`
+			} `json:"components"`
+		} `json:"compensationTiers"`
+	} `json:"compensation"`
 	IsListed        *bool  `json:"isListed"`
 	JobURL          string `json:"jobUrl"`
 	DescriptionHTML string `json:"descriptionHtml"`
@@ -132,34 +147,82 @@ func (a *Adapter) Fetch(ctx context.Context, token string) ([]fetcher.RawJob, er
 
 	jobs := make([]fetcher.RawJob, 0, len(payload.Jobs))
 	for i, raw := range payload.Jobs {
-		var j ashbyJob
-		if err := json.Unmarshal(raw, &j); err != nil {
-			return nil, fmt.Errorf("decode job #%d: %w", i, err)
-		}
-		if j.IsListed != nil && !*j.IsListed {
+		rj, err := parseJob(raw)
+		if errors.Is(err, errUnlisted) {
 			continue // unlisted postings are not public
 		}
-		if j.ID == "" || strings.TrimSpace(j.Title) == "" {
-			return nil, fmt.Errorf("job #%d is missing id or title", i)
-		}
-		rj := fetcher.RawJob{
-			ExternalID:      j.ID,
-			URL:             j.JobURL,
-			Title:           strings.TrimSpace(j.Title),
-			Location:        location(j),
-			Department:      firstNonEmpty(j.Department, j.Team),
-			DescriptionHTML: j.DescriptionHTML,
-			Payload:         append([]byte(nil), raw...),
-		}
-		if c := normalizer.CountryHint(j.Address.PostalAddress.AddressCountry); c != nil {
-			rj.Country = *c
-		}
-		if t, err := time.Parse(time.RFC3339, j.PublishedAt); err == nil {
-			rj.PostedAt = &t
+		if err != nil {
+			return nil, fmt.Errorf("job #%d: %w", i, err)
 		}
 		jobs = append(jobs, rj)
 	}
 	return jobs, nil
+}
+
+var errUnlisted = errors.New("posting is not listed")
+
+// Parse rebuilds a RawJob from one job's original JSON.
+func (a *Adapter) Parse(payload []byte) (fetcher.RawJob, error) { return parseJob(payload) }
+
+func parseJob(raw []byte) (fetcher.RawJob, error) {
+	var j ashbyJob
+	if err := json.Unmarshal(raw, &j); err != nil {
+		return fetcher.RawJob{}, fmt.Errorf("decode job: %w", err)
+	}
+	if j.IsListed != nil && !*j.IsListed {
+		return fetcher.RawJob{}, errUnlisted
+	}
+	if j.ID == "" || strings.TrimSpace(j.Title) == "" {
+		return fetcher.RawJob{}, fmt.Errorf("job is missing id or title")
+	}
+	rj := fetcher.RawJob{
+		ExternalID:      j.ID,
+		URL:             j.JobURL,
+		Title:           strings.TrimSpace(j.Title),
+		Location:        location(j),
+		Department:      firstNonEmpty(j.Department, j.Team),
+		DescriptionHTML: j.DescriptionHTML,
+		Remote:          j.WorkplaceType,
+		Employment:      j.EmploymentType,
+		Payload:         append([]byte(nil), raw...),
+	}
+	if rj.Remote == "" && j.IsRemote != nil && *j.IsRemote {
+		rj.Remote = "remote"
+	}
+	if c, ok := normalizer.CountryCode(j.Address.PostalAddress.AddressCountry); ok {
+		rj.Country = c
+	}
+	if t, err := time.Parse(time.RFC3339, j.PublishedAt); err == nil {
+		rj.PostedAt = &t
+	}
+	// First salary component of the first pay tier. Multi-zone postings list
+	// several tiers; the rest stay available in the stored payload.
+	for _, tier := range j.Compensation.Tiers {
+		for _, c := range tier.Components {
+			if strings.EqualFold(c.Type, "Salary") && c.Min > 0 && c.Max >= c.Min {
+				if period := periodFrom(c.Interval); period != "" {
+					rj.SalaryMin, rj.SalaryMax = c.Min, c.Max
+					rj.SalaryCurrency, rj.SalaryPeriod = strings.ToUpper(c.Currency), period
+					return rj, nil
+				}
+			}
+		}
+	}
+	return rj, nil
+}
+
+// periodFrom maps Ashby's interval ("1 YEAR", "1 MONTH", "1 HOUR") to year/month/hour.
+func periodFrom(interval string) string {
+	l := strings.ToLower(interval)
+	switch {
+	case strings.Contains(l, "hour"):
+		return "hour"
+	case strings.Contains(l, "month"):
+		return "month"
+	case strings.Contains(l, "year"):
+		return "year"
+	}
+	return ""
 }
 
 func location(j ashbyJob) string {

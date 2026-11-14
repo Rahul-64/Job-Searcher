@@ -15,8 +15,10 @@
       "location": "Bangalore, Karnataka",
       "allLocations": ["Bangalore, Karnataka", "Remote - India"],
       "team": "Risk",
-      "department": "Financial Services"
+      "department": "Financial Services",
+      "commitment": " Full Time Employee "
     },
+    "salaryRange": { "min": 1200000, "max": 1800000, "currency": "inr", "interval": "per-year-salary" },
     "workplaceType": "onsite"
   },
   {
@@ -27,6 +29,8 @@
     "country": "",
     "descriptionBody": "<p>Fallback body</p>",
     "lists": [],
+    "salaryRange": { "min": 0, "max": 0, "currency": "INR", "interval": "per-year-salary" },
+    "workplaceType": "unspecified",
     "categories": { "location": "", "allLocations": [], "department": "Design" }
   }
 ]

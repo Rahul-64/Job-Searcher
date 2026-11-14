@@ -58,6 +58,13 @@ jobs:
             ./scraper run-due --concurrency 3
           fi
 
+      # Re-derives any job below the current normalizer version from its stored raw
+      # payload (no scraping) and merges identical jobs. A no-op when nothing changed.
+      - name: Renormalize
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: ./scraper renormalize
+
       # Best effort: GitHub disables scheduled workflows after 60 days without
       # repository activity, and a successful run does not count as activity.
       # Re-enabling the workflow is the documented way to keep it alive; if the

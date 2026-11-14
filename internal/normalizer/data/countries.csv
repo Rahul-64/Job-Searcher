@@ -1,0 +1,89 @@
+# iso2,iso3,name,aliases (semicolon separated, lower case, no commas)
+US,USA,United States,united states of america;u.s.;u.s;u.s.a.;u.s.a;us;america
+GB,GBR,United Kingdom,uk;u.k.;great britain;britain;england;scotland;wales;northern ireland
+IN,IND,India,bharat
+CA,CAN,Canada,
+AU,AUS,Australia,
+DE,DEU,Germany,deutschland
+FR,FRA,France,
+IE,IRL,Ireland,republic of ireland
+NL,NLD,Netherlands,the netherlands;holland
+ES,ESP,Spain,españa
+IT,ITA,Italy,italia
+SE,SWE,Sweden,
+NO,NOR,Norway,
+DK,DNK,Denmark,
+FI,FIN,Finland,
+CH,CHE,Switzerland,
+AT,AUT,Austria,
+BE,BEL,Belgium,
+PL,POL,Poland,
+PT,PRT,Portugal,
+CZ,CZE,Czechia,czech republic
+RO,ROU,Romania,
+UA,UKR,Ukraine,
+TR,TUR,Turkey,türkiye;turkiye
+IL,ISR,Israel,
+AE,ARE,United Arab Emirates,uae;u.a.e.
+SA,SAU,Saudi Arabia,ksa
+EG,EGY,Egypt,
+ZA,ZAF,South Africa,
+NG,NGA,Nigeria,
+KE,KEN,Kenya,
+SG,SGP,Singapore,
+JP,JPN,Japan,
+KR,KOR,South Korea,korea;republic of korea
+CN,CHN,China,prc;people's republic of china
+HK,HKG,Hong Kong,hong kong sar
+TW,TWN,Taiwan,
+TH,THA,Thailand,
+VN,VNM,Vietnam,viet nam
+ID,IDN,Indonesia,
+MY,MYS,Malaysia,
+PH,PHL,Philippines,the philippines
+NZ,NZL,New Zealand,
+MX,MEX,Mexico,méxico
+BR,BRA,Brazil,brasil
+AR,ARG,Argentina,
+CL,CHL,Chile,
+CO,COL,Colombia,
+PE,PER,Peru,
+UY,URY,Uruguay,
+CR,CRI,Costa Rica,
+PA,PAN,Panama,
+PK,PAK,Pakistan,
+BD,BGD,Bangladesh,
+LK,LKA,Sri Lanka,
+NP,NPL,Nepal,
+RU,RUS,Russia,
+GR,GRC,Greece,
+HU,HUN,Hungary,
+BG,BGR,Bulgaria,
+HR,HRV,Croatia,
+RS,SRB,Serbia,
+SK,SVK,Slovakia,
+SI,SVN,Slovenia,
+LT,LTU,Lithuania,
+LV,LVA,Latvia,
+EE,EST,Estonia,
+IS,ISL,Iceland,
+LU,LUX,Luxembourg,
+MT,MLT,Malta,
+CY,CYP,Cyprus,
+QA,QAT,Qatar,
+KW,KWT,Kuwait,
+BH,BHR,Bahrain,
+OM,OMN,Oman,
+JO,JOR,Jordan,
+LB,LBN,Lebanon,
+MA,MAR,Morocco,
+TN,TUN,Tunisia,
+GH,GHA,Ghana,
+ET,ETH,Ethiopia,
+UG,UGA,Uganda,
+TZ,TZA,Tanzania,
+GE,GEO,,
+AM,ARM,Armenia,
+KZ,KAZ,Kazakhstan,
+PR,PRI,Puerto Rico,
+DO,DOM,Dominican Republic,

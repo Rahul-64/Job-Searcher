@@ -7,6 +7,11 @@
       "department": "Business Development",
       "team": "Sales",
       "employmentType": "FullTime",
+      "workplaceType": "Hybrid",
+      "compensation": { "compensationTierSummary": "x", "compensationTiers": [ { "components": [
+        { "compensationType": "EquityPercentage", "currencyCode": null, "interval": "NONE", "minValue": 1, "maxValue": 2 },
+        { "compensationType": "Salary", "currencyCode": "INR", "interval": "1 YEAR", "minValue": 2400000, "maxValue": 3600000 }
+      ] } ] },
       "location": "Delhi",
       "secondaryLocations": [ { "location": "Mumbai" }, { "location": "delhi" } ],
       "publishedAt": "2026-04-17T11:46:39.214+00:00",
@@ -29,6 +34,7 @@
       "team": "Platform",
       "location": "San Francisco",
       "publishedAt": "garbage",
+      "isRemote": true,
       "jobUrl": "https://jobs.ashbyhq.com/acme/us-1",
       "address": { "postalAddress": { "addressCountry": "United States" } },
       "descriptionHtml": ""

@@ -44,6 +44,28 @@ lines to `seeds/sources.txt` and running `make seed`.
 | **Mass-drop guard** | If a source returns 0 jobs, or under half of a 20+ job board, nothing is closed. Override with `run --accept-drop` once you have checked. |
 | **Run lock** | Two overlapping runs of one source cannot both start; a crashed run is reclaimed after 30 minutes. |
 
+## India focus and data quality
+
+The scraper currently collects **India only** (`TARGET_COUNTRIES=IN`). Every posting's location is
+normalized; a job whose places are all outside India is not stored, and one whose location cannot be
+resolved is kept (so nothing Indian is lost to a parsing gap). Jobs already stored that fall out of scope
+are *closed*, never deleted.
+
+```powershell
+make quality         # coverage of location, remote type, seniority, experience, salary
+make renormalize     # re-derive jobs from stored raw payloads (no scraping), then dedup
+```
+
+What is derived for each job: normalized title and seniority, one or more places (city, state, country),
+remote / hybrid / onsite, employment type, years of experience, and salary. Source data is used when the
+source provides it (Lever, Ashby); otherwise it is parsed from the text, favouring precision over recall:
+a field stays empty rather than being guessed. Rules are versioned (`normalizer.Version`); after changing
+them, `make renormalize` updates every job in seconds from the stored payloads.
+
+Identical postings (same company, title, place **and description**) become one job with several postings.
+The description is part of the match on purpose: many roles share a title and city but belong to different
+teams.
+
 ## Daily schedule (GitHub Actions)
 [`.github/workflows/scrape.yml`](.github/workflows/scrape.yml) runs `run-due` at 06:00 IST. It also runs
 manually from the Actions tab (choose `due` or `all`). A source is "due" 23 hours after its last run

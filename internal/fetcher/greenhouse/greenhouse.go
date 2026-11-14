@@ -122,6 +122,11 @@ type ghJob struct {
 	Departments []struct {
 		Name string `json:"name"`
 	} `json:"departments"`
+	// Company-specific custom fields; only a few names are meaningful to us.
+	Metadata []struct {
+		Name  string `json:"name"`
+		Value any    `json:"value"`
+	} `json:"metadata"`
 }
 
 // Fetch returns all jobs on the board, including descriptions.
@@ -142,33 +147,57 @@ func (a *Adapter) Fetch(ctx context.Context, token string) ([]fetcher.RawJob, er
 
 	jobs := make([]fetcher.RawJob, 0, len(payload.Jobs))
 	for i, raw := range payload.Jobs {
-		var j ghJob
-		if err := json.Unmarshal(raw, &j); err != nil {
-			return nil, fmt.Errorf("decode job #%d: %w", i, err)
+		rj, err := parseJob(raw)
+		if err != nil {
+			return nil, fmt.Errorf("job #%d: %w", i, err)
 		}
-		if j.ID == 0 || strings.TrimSpace(j.Title) == "" {
-			return nil, fmt.Errorf("job #%d is missing id or title", i)
-		}
-		depts := make([]string, 0, len(j.Departments))
-		for _, d := range j.Departments {
-			if n := strings.TrimSpace(d.Name); n != "" {
-				depts = append(depts, n)
-			}
-		}
-		jobs = append(jobs, fetcher.RawJob{
-			ExternalID: strconv.FormatInt(j.ID, 10),
-			URL:        j.AbsoluteURL,
-			Title:      strings.TrimSpace(j.Title),
-			Location:   strings.TrimSpace(j.Location.Name),
-			Department: strings.Join(depts, ", "),
-			// Greenhouse returns the description HTML entity-escaped.
-			DescriptionHTML: html.UnescapeString(j.Content),
-			PostedAt:        parseTime(j.FirstPublished),
-			UpdatedAt:       parseTime(j.UpdatedAt),
-			Payload:         append([]byte(nil), raw...),
-		})
+		jobs = append(jobs, rj)
 	}
 	return jobs, nil
+}
+
+// Parse rebuilds a RawJob from one job's original JSON.
+func (a *Adapter) Parse(payload []byte) (fetcher.RawJob, error) { return parseJob(payload) }
+
+func parseJob(raw []byte) (fetcher.RawJob, error) {
+	var j ghJob
+	if err := json.Unmarshal(raw, &j); err != nil {
+		return fetcher.RawJob{}, fmt.Errorf("decode job: %w", err)
+	}
+	if j.ID == 0 || strings.TrimSpace(j.Title) == "" {
+		return fetcher.RawJob{}, fmt.Errorf("job is missing id or title")
+	}
+	depts := make([]string, 0, len(j.Departments))
+	for _, d := range j.Departments {
+		if n := strings.TrimSpace(d.Name); n != "" {
+			depts = append(depts, n)
+		}
+	}
+	rj := fetcher.RawJob{
+		ExternalID: strconv.FormatInt(j.ID, 10),
+		URL:        j.AbsoluteURL,
+		Title:      strings.TrimSpace(j.Title),
+		Location:   strings.TrimSpace(j.Location.Name),
+		Department: strings.Join(depts, ", "),
+		// Greenhouse returns the description HTML entity-escaped.
+		DescriptionHTML: html.UnescapeString(j.Content),
+		PostedAt:        parseTime(j.FirstPublished),
+		UpdatedAt:       parseTime(j.UpdatedAt),
+		Payload:         append([]byte(nil), raw...),
+	}
+	for _, m := range j.Metadata {
+		v, ok := m.Value.(string)
+		if !ok || strings.TrimSpace(v) == "" {
+			continue
+		}
+		switch strings.ToLower(strings.TrimSpace(m.Name)) {
+		case "employment type":
+			rj.Employment = strings.TrimSpace(v)
+		case "workplace type", "work type":
+			rj.Remote = strings.TrimSpace(v)
+		}
+	}
+	return rj, nil
 }
 
 func parseTime(s string) *time.Time {

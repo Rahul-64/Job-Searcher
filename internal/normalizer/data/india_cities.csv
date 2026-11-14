@@ -1,0 +1,64 @@
+# city,region,country,aliases (semicolon separated, lower case, no commas)
+# Region names must match regions.csv exactly (checked by a test).
+Bengaluru,Karnataka,IN,bangalore;blr;bengaluru urban;bangalore urban;bangalore rural
+Mysuru,Karnataka,IN,mysore
+Mangaluru,Karnataka,IN,mangalore
+Hubballi,Karnataka,IN,hubli;hubli-dharwad;hubballi-dharwad
+Belagavi,Karnataka,IN,belgaum
+Mumbai,Maharashtra,IN,bombay;greater mumbai;mumbai suburban
+Navi Mumbai,Maharashtra,IN,
+Thane,Maharashtra,IN,
+Pune,Maharashtra,IN,poona;pimpri-chinchwad;pimpri chinchwad
+Nagpur,Maharashtra,IN,
+Nashik,Maharashtra,IN,nasik
+Aurangabad,Maharashtra,IN,chhatrapati sambhajinagar
+Hyderabad,Telangana,IN,secunderabad;hyd;hitec city;hi-tech city
+Warangal,Telangana,IN,
+Chennai,Tamil Nadu,IN,madras
+Coimbatore,Tamil Nadu,IN,kovai
+Madurai,Tamil Nadu,IN,
+Tiruchirappalli,Tamil Nadu,IN,trichy;tiruchirapalli
+Hosur,Tamil Nadu,IN,
+Delhi,Delhi,IN,new delhi;delhi ncr;ncr;national capital region;delhi-ncr;nct of delhi
+Gurugram,Haryana,IN,gurgaon
+Faridabad,Haryana,IN,
+Panchkula,Haryana,IN,
+Noida,Uttar Pradesh,IN,greater noida
+Ghaziabad,Uttar Pradesh,IN,
+Lucknow,Uttar Pradesh,IN,
+Kanpur,Uttar Pradesh,IN,
+Agra,Uttar Pradesh,IN,
+Varanasi,Uttar Pradesh,IN,banaras;benaras
+Prayagraj,Uttar Pradesh,IN,allahabad
+Kolkata,West Bengal,IN,calcutta
+Siliguri,West Bengal,IN,
+Ahmedabad,Gujarat,IN,
+Gandhinagar,Gujarat,IN,gift city
+Surat,Gujarat,IN,
+Vadodara,Gujarat,IN,baroda
+Rajkot,Gujarat,IN,
+Jaipur,Rajasthan,IN,
+Udaipur,Rajasthan,IN,
+Jodhpur,Rajasthan,IN,
+Indore,Madhya Pradesh,IN,
+Bhopal,Madhya Pradesh,IN,
+Chandigarh,Chandigarh,IN,
+Mohali,Punjab,IN,sas nagar;sahibzada ajit singh nagar
+Ludhiana,Punjab,IN,
+Amritsar,Punjab,IN,
+Kochi,Kerala,IN,cochin;ernakulam
+Thiruvananthapuram,Kerala,IN,trivandrum
+Kozhikode,Kerala,IN,calicut
+Visakhapatnam,Andhra Pradesh,IN,vizag;vishakhapatnam
+Vijayawada,Andhra Pradesh,IN,
+Bhubaneswar,Odisha,IN,
+Patna,Bihar,IN,
+Ranchi,Jharkhand,IN,
+Jamshedpur,Jharkhand,IN,
+Raipur,Chhattisgarh,IN,
+Guwahati,Assam,IN,
+Dehradun,Uttarakhand,IN,
+Panaji,Goa,IN,panjim;goa
+Puducherry,Puducherry,IN,pondicherry
+Jammu,Jammu and Kashmir,IN,
+Shimla,Himachal Pradesh,IN,

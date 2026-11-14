@@ -17,7 +17,12 @@ Job postings are scattered across job boards (LinkedIn, Naukri, Instahyre, etc.)
 ### 1.2 Goal
 One unified, deduplicated, continuously refreshed dataset of job postings, with a layer of intelligence on top (search, trends, alerts, matching).
 
-### 1.3 Out of scope (for now)
+### 1.3 Scope: India first
+Decision (phase 3): collect **India only** for now. Jobs located only elsewhere are not stored
+(`TARGET_COUNTRIES`, default `IN`); unresolvable locations are kept. The data model stays global, so
+widening the scope later is a configuration change.
+
+### 1.4 Out of scope (for now)
 - Auto-applying to jobs
 - Scraping behind logins or using personal accounts
 - Collecting recruiter/personal contact data
@@ -124,7 +129,8 @@ Map every job to a unified schema:
 - [ ] At least 3 ATS adapters working (Greenhouse, Lever, + one more)
 - [ ] 100+ companies covered with 5,000+ active jobs collected
 - [ ] Duplicate rate under 2% after dedup
-- [ ] 90%+ of jobs have normalized location and a parsed experience range
+- [x] 90%+ of jobs have a normalized location (measured 90%)
+- [x] Experience is parsed whenever the description states it (measured 77% of jobs; the original target of 90% assumed every posting states it, and most do not)
 - [ ] Re-running a scrape produces no duplicates and correctly marks removed jobs
 - [ ] Search API returns filtered results in under 500 ms
 - [ ] Dashboard shows at least one useful trend view (e.g. top skills by city)

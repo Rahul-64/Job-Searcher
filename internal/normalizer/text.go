@@ -1,12 +1,10 @@
-// Package normalizer turns raw source fields into clean, comparable values.
-// Phase 1 covers only text basics; location, experience and salary parsing
-// arrive in Phase 3.
+// Package normalizer turns raw source fields into clean, comparable values:
+// plain-text descriptions, normalized titles and seniority, places, experience,
+// salary, remote type and employment type. Every function is pure (no I/O), so
+// the same rules run at ingestion time and when re-deriving stored jobs.
 package normalizer
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
-	"fmt"
 	"html"
 	"regexp"
 	"strings"
@@ -35,27 +33,4 @@ func HTMLToText(s string) string {
 	s = strings.Join(lines, "\n")
 	s = blankRuns.ReplaceAllString(s, "\n\n")
 	return strings.TrimSpace(s)
-}
-
-// NormalizeTitle lower-cases and collapses whitespace. Abbreviation expansion
-// ("sr" -> "senior") is added in Phase 3.
-func NormalizeTitle(s string) string {
-	return strings.ToLower(multiWS.ReplaceAllString(strings.TrimSpace(s), " "))
-}
-
-// CountryHint returns an ISO country code only when the location text makes it
-// obvious. Anything else stays nil until the Phase 3 location normalizer.
-func CountryHint(location string) *string {
-	if strings.Contains(strings.ToLower(location), "india") {
-		c := "IN"
-		return &c
-	}
-	return nil
-}
-
-// Fingerprint identifies "the same opening" for dedup. Phase 3 refines it
-// (normalized city instead of raw location).
-func Fingerprint(companyID int64, titleNormalized, location string) string {
-	sum := sha256.Sum256([]byte(fmt.Sprintf("%d\x00%s\x00%s", companyID, titleNormalized, NormalizeTitle(location))))
-	return hex.EncodeToString(sum[:])
 }

@@ -26,6 +26,9 @@ type Config struct {
 	MinInterval time.Duration
 	// MaxFailures is how many consecutive failed runs disable a source.
 	MaxFailures int
+	// TargetCountries are the ISO country codes we collect jobs for (default IN).
+	// Jobs located only in other countries are not stored. Empty means everywhere.
+	TargetCountries []string
 }
 
 // Load reads .env (if present) and then the environment.
@@ -45,7 +48,32 @@ func Load() (*Config, error) {
 	if c.MaxFailures, err = envInt("SCRAPE_MAX_FAILURES", 5); err != nil {
 		return nil, err
 	}
+	if c.TargetCountries, err = envCountries("TARGET_COUNTRIES", []string{"IN"}); err != nil {
+		return nil, err
+	}
 	return c, nil
+}
+
+// envCountries parses a comma-separated list of ISO alpha-2 codes. An unset
+// variable gives the fallback; "ALL" or an empty value means no restriction.
+func envCountries(key string, fallback []string) ([]string, error) {
+	v, set := os.LookupEnv(key)
+	if !set {
+		return fallback, nil
+	}
+	v = strings.TrimSpace(v)
+	if v == "" || strings.EqualFold(v, "all") {
+		return nil, nil
+	}
+	var out []string
+	for _, c := range strings.Split(v, ",") {
+		c = strings.ToUpper(strings.TrimSpace(c))
+		if len(c) != 2 || c[0] < 'A' || c[0] > 'Z' || c[1] < 'A' || c[1] > 'Z' {
+			return nil, fmt.Errorf("%s=%q: %q is not a two-letter country code (example: IN or IN,SG)", key, v, c)
+		}
+		out = append(out, c)
+	}
+	return out, nil
 }
 
 func envDuration(key string, fallback time.Duration) (time.Duration, error) {

@@ -304,3 +304,18 @@ CREATE TABLE notifications (
 - Queries in `internal/store/queries/*.sql`, compiled by **sqlc** into typed Go.
 - Seed files: `seeds/skills.sql`, `seeds/india_locations.sql`, `seeds/sources.sql` (initial company boards).
 - Neon branching: use a `dev` branch for experiments, `main` for the real data.
+
+
+---
+
+## 11. Changes made in phase 3 (as built)
+- **Fingerprint includes a description hash**: `hash(company, normalized title, primary place, description)`.
+  Measured on real data, 125 groups shared company + title + location, but only 67 of their 307 jobs had
+  identical descriptions; the rest were different teams (e.g. nine "Staff Software Engineer, Bengaluru"
+  openings with nine different descriptions). Matching on title + place alone would have merged distinct roles.
+- **`jobs.norm_version`** records which rules produced a job's derived fields. `scraper renormalize`
+  re-derives jobs below the current version from `posting_raw`, with no scraping.
+- **`locations` uses `UNIQUE NULLS NOT DISTINCT (country, region, city)`** (Postgres 15+; Neon runs 18), so a
+  country-only place such as ("IN", NULL, NULL) exists once. `city_aliases` and `job_locations` are as planned.
+- **Postings attach to an existing job** with the same company and fingerprint instead of creating a new one.
+  Only the oldest posting of a job may rewrite the job's fields.

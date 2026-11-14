@@ -81,3 +81,28 @@ func TestLoadDefaultsAndValidation(t *testing.T) {
 		}
 	}
 }
+
+func TestTargetCountries(t *testing.T) {
+	// unset -> India only
+	os.Unsetenv("TARGET_COUNTRIES")
+	c, err := Load()
+	if err != nil || len(c.TargetCountries) != 1 || c.TargetCountries[0] != "IN" {
+		t.Fatalf("default should be [IN], got %v, %v", c.TargetCountries, err)
+	}
+	t.Setenv("TARGET_COUNTRIES", "in, sg")
+	if c, err = Load(); err != nil || len(c.TargetCountries) != 2 || c.TargetCountries[0] != "IN" || c.TargetCountries[1] != "SG" {
+		t.Fatalf("list parsing: %v, %v", c.TargetCountries, err)
+	}
+	for _, all := range []string{"", "all", "ALL"} {
+		t.Setenv("TARGET_COUNTRIES", all)
+		if c, err = Load(); err != nil || c.TargetCountries != nil {
+			t.Errorf("%q should mean no restriction, got %v, %v", all, c.TargetCountries, err)
+		}
+	}
+	for _, bad := range []string{"India", "I", "IN,USA", "1N"} {
+		t.Setenv("TARGET_COUNTRIES", bad)
+		if _, err := Load(); err == nil {
+			t.Errorf("TARGET_COUNTRIES=%q should be rejected", bad)
+		}
+	}
+}

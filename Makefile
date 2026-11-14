@@ -6,7 +6,7 @@
 # Or in PowerShell, once per session:          Set-Alias make mingw32-make
 
 .DEFAULT_GOAL := help
-.PHONY: help build test test-unit vet fmt tidy check ping migrate migrate-down migrate-status stats seed run run-all run-due sources enable disable prune version
+.PHONY: help build test test-unit vet fmt tidy check ping migrate migrate-down migrate-status stats seed run run-all run-due sources enable disable renormalize dedup quality seed-locations prune version
 
 SOURCE ?=
 
@@ -35,6 +35,11 @@ help:
 	@echo     sources          list sources with state, failures and last run
 	@echo     enable SOURCE=kind:token    re-enable a source
 	@echo     disable SOURCE=kind:token   stop scraping a source
+	@echo Data quality:
+	@echo     renormalize      re-derive jobs from stored raw payloads, no scraping, then dedup
+	@echo     dedup            merge identical jobs
+	@echo     quality          coverage report for location, remote, seniority, experience, salary
+	@echo     seed-locations   load reference cities and aliases
 	@echo Planned, not implemented yet:
 	@echo     prune            prune old raw payloads, phase 6
 	@echo Other:
@@ -89,6 +94,18 @@ run-due:
 
 sources:
 	go run ./cmd/scraper sources
+
+renormalize:
+	go run ./cmd/scraper renormalize
+
+dedup:
+	go run ./cmd/scraper dedup
+
+quality:
+	go run ./cmd/scraper quality
+
+seed-locations:
+	go run ./cmd/scraper seed-locations
 
 enable:
 	go run ./cmd/scraper enable $(SOURCE)

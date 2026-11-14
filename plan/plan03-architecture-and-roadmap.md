@@ -17,7 +17,7 @@
 | Raw payloads | In DB (`posting_raw`, gzip, latest-only, pruned) |
 | Alerts | Telegram bot (free) |
 | Enrichment | Rules/taxonomy first; LLM only for gaps (optional free tier) |
-| Geography | India-first normalization; global-capable model |
+| Geography | **India only for now** (`TARGET_COUNTRIES=IN`); the data model stays global |
 | Sources order | ATS APIs → company career pages → aggregators → (optional) Naukri/Instahyre. LinkedIn excluded |
 
 > **Why the scraper is not on Vercel:** Vercel is serverless — no long-running workers or in-process cron, short function limits, and Hobby cron is ~1×/day. So the scraper runs in GitHub Actions, and Vercel only serves reads.
@@ -130,11 +130,17 @@ Secrets are never committed. Use a `.env.example` only.
 - Findings: Greenhouse robots only blocks `/embed/`; Lever allows all with `Crawl-delay: 1`; Ashby's robots returns 401, which RFC 9309 treats as "no restrictions".
 - **Demo:** unattended runs, run history visible, removed jobs marked closed, a repeat `run-due` finds nothing due
 
-### Phase 3 — Clean data
-- [ ] Normalizer: India city aliases (seed), experience parser, salary parser, remote detection, title normalization
-- [ ] Non-India locations: best-effort country detection, never dropped
-- [ ] Dedup: fingerprint + trigram, link postings → canonical job
-- **Demo:** same job from 2 sources shows as 1 job; "3-5 yrs" becomes 3/5; BLR → Bengaluru
+### Phase 3 — Clean data (India focus)
+- [x] **Scope decision: India only.** `TARGET_COUNTRIES=IN`; non-India postings are not stored, existing ones are closed (not deleted), unresolved locations are kept
+- [x] Location normalizer: embedded reference data (countries, US/CA/IN regions, 58 Indian cities with aliases, ~150 world cities used to recognise and exclude non-India jobs); handles `Bangalore, IND`, `Pune, IN`, `Mumbai/Delhi/Bengaluru`, `Remote - USA`, `Sydney Or Melbourne`, and the IN / Indiana, Washington / DC, Mumbai-Delhi ambiguities
+- [x] Experience parser (`5+ years`, `3-5 yrs`, fresher wording; rejects `founded 15 years ago`), salary parser (US, EU `€48.000`, INR `₹5,900,000`, `12-18 LPA`; rejects bonuses and year ranges), remote / employment / seniority, title normalization
+- [x] Structured source hints (Lever, Ashby, Greenhouse metadata) take priority over text parsing
+- [x] Adapters expose `Parse(payload)`, so jobs are re-derived from `posting_raw` without re-scraping (`renormalize`, versioned rules)
+- [x] Dedup by exact fingerprint **including the description** (see plan02 section 11); `quality` report
+- Measured on 1,067 open jobs: 90% country resolved, 89% in India (94% of those with a city), 77% experience parsed, 62% remote type, 49% seniority, 2% salary (Indian postings rarely state pay)
+- Plausibility check: average minimum experience rises with seniority (junior 2.2, senior 6.2, staff 9.0, director 10.7)
+- Known gaps: misspelt regions (`Uttrakhand`) are not recognised; trigram/fuzzy cross-source dedup is not built because no job currently exists on two platforms
+- **Demo:** same job listed twice shows once; `Bangalore, IND` becomes Bengaluru, Karnataka, IN; `make quality`
 
 ### Phase 4 — API + dashboard (Vercel)
 - [ ] `api/jobs` (search, filters, pagination, `country` param default IN), `api/companies`, `api/stats`

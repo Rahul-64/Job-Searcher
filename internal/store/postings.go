@@ -8,15 +8,34 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
+// Place is a normalized location attached to a job.
+type Place struct {
+	City    string
+	Region  string
+	Country string // ISO 3166-1 alpha-2
+}
+
 // JobFields is the canonical-job view of a posting (what `jobs` stores).
+// Pointer fields are NULL when the value is unknown.
 type JobFields struct {
 	Title           string
 	TitleNormalized string
 	Description     string // plain text
 	LocationRaw     string
-	Country         *string // nil until the Phase 3 location normalizer
 	Fingerprint     string
 	PostedAt        *time.Time
+
+	City, Region, Country *string // of the primary place
+	RemoteType            *string
+	Seniority             *string
+	EmploymentType        *string
+	ExpMin, ExpMax        *int
+	SalaryMin, SalaryMax  *float64
+	SalaryCurrency        *string
+	SalaryPeriod          *string
+
+	NormVersion int
+	Places      []Place // all places, primary first
 }
 
 // PostingInput is one fetched job, ready to be stored.
@@ -32,17 +51,18 @@ type PostingInput struct {
 
 // SyncResult counts what a sync did.
 type SyncResult struct {
-	Found     int
-	New       int
-	Updated   int
-	Unchanged int
-	Closed    int
+	Found      int // in-scope jobs the source listed
+	New        int
+	Updated    int
+	Unchanged  int
+	Closed     int
+	OutOfScope int // listed by the source but outside the target countries; not stored
 	// SkippedClose is set when closing was withheld because the result looks
 	// wrong (see massDrop); SkipReason says why. Pass SyncOptions.AllowMassClose
 	// to override once a human has confirmed the drop is real.
 	SkippedClose bool
 	SkipReason   string
-	// ActiveBefore is the number of active postings before this sync.
+	// ActiveBefore is the number of in-scope active postings before this sync.
 	ActiveBefore int
 }
 
@@ -51,6 +71,11 @@ type SyncOptions struct {
 	// AllowMassClose lets a sync close postings even when the source suddenly
 	// lists far fewer jobs than before.
 	AllowMassClose bool
+	// OutOfScope holds the external ids of postings the source listed but the
+	// pipeline filtered out (outside the target countries). They are not stored,
+	// any already-stored copy is closed, and they are left out of the mass-drop
+	// baseline so that narrowing the scope does not look like a collapse.
+	OutOfScope []string
 }
 
 // massDropMinActive is the smallest board for which a "more than half gone"
@@ -72,10 +97,11 @@ func massDrop(activeBefore, found int) (bool, string) {
 }
 
 type existingPosting struct {
-	ID      int64
-	Hash    string
-	JobID   *int64
-	Removed bool
+	ID        int64
+	Hash      string
+	JobID     *int64
+	Removed   bool
+	IsPrimary bool // the oldest posting of its job: the one allowed to update the job's fields
 }
 
 type changedPosting struct {
@@ -115,8 +141,10 @@ func classify(existing map[string]existingPosting, in []PostingInput) (fresh []P
 
 func loadExisting(ctx context.Context, tx pgx.Tx, sourceID int64) (map[string]existingPosting, error) {
 	rows, err := tx.Query(ctx, `
-		SELECT id, external_id, content_hash, job_id, removed_at IS NOT NULL
-		FROM job_postings WHERE source_id = $1`, sourceID)
+		SELECT p.id, p.external_id, p.content_hash, p.job_id, p.removed_at IS NOT NULL,
+		       (p.job_id IS NOT NULL AND
+		        p.id = (SELECT min(q.id) FROM job_postings q WHERE q.job_id = p.job_id))
+		FROM job_postings p WHERE p.source_id = $1`, sourceID)
 	if err != nil {
 		return nil, err
 	}
@@ -127,7 +155,7 @@ func loadExisting(ctx context.Context, tx pgx.Tx, sourceID int64) (map[string]ex
 			e   existingPosting
 			ext string
 		)
-		if err := rows.Scan(&e.ID, &ext, &e.Hash, &e.JobID, &e.Removed); err != nil {
+		if err := rows.Scan(&e.ID, &ext, &e.Hash, &e.JobID, &e.Removed, &e.IsPrimary); err != nil {
 			return nil, err
 		}
 		m[ext] = e
@@ -135,11 +163,32 @@ func loadExisting(ctx context.Context, tx pgx.Tx, sourceID int64) (map[string]ex
 	return m, rows.Err()
 }
 
+// derivedArgs are the job columns shared by insert and update, in the order of
+// $2.. (insert) / $2.. (update); both statements below list them identically.
+func derivedArgs(j JobFields) []any {
+	return []any{
+		j.Title, j.TitleNormalized, j.Description, j.LocationRaw,
+		j.City, j.Region, j.Country, j.RemoteType, j.Seniority, j.EmploymentType,
+		j.ExpMin, j.ExpMax, j.SalaryMin, j.SalaryMax, j.SalaryCurrency, j.SalaryPeriod,
+		j.Fingerprint, j.PostedAt, j.NormVersion,
+	}
+}
+
 const (
 	insertJobSQL = `
 		INSERT INTO jobs (company_id, title, title_normalized, description, location_raw,
-		                  country, fingerprint, posted_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`
+		                  city, region, country, remote_type, seniority, employment_type,
+		                  exp_min_years, exp_max_years, salary_min, salary_max, salary_currency, salary_period,
+		                  fingerprint, posted_at, norm_version)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)
+		RETURNING id`
+	updateJobSQL = `
+		UPDATE jobs SET title=$2, title_normalized=$3, description=$4, location_raw=$5,
+		  city=$6, region=$7, country=$8, remote_type=$9, seniority=$10, employment_type=$11,
+		  exp_min_years=$12, exp_max_years=$13, salary_min=$14, salary_max=$15,
+		  salary_currency=$16, salary_period=$17, fingerprint=$18, posted_at=$19, norm_version=$20,
+		  last_seen_at = now(), closed_at = NULL
+		WHERE id = $1`
 	insertPostingSQL = `
 		INSERT INTO job_postings (job_id, source_id, external_id, url, title_raw, location_raw, content_hash)
 		VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`
@@ -151,19 +200,16 @@ const (
 		UPDATE job_postings SET url = $2, title_raw = $3, location_raw = $4, content_hash = $5,
 		  last_seen_at = now(), removed_at = NULL
 		WHERE id = $1`
-	updateJobSQL = `
-		UPDATE jobs SET title = $2, title_normalized = $3, description = $4, location_raw = $5,
-		  country = $6, fingerprint = $7, posted_at = $8, last_seen_at = now(), closed_at = NULL
-		WHERE id = $1`
 )
 
 // SyncPostings reconciles a source's fetched jobs with the database in one
-// transaction: inserts new postings (and their canonical jobs), updates changed
-// ones, refreshes last_seen on the rest, and marks vanished postings removed.
-// It is idempotent: running it twice with the same input changes nothing.
+// transaction: inserts new postings (attaching them to an existing identical job
+// when there is one), updates changed ones, refreshes last_seen on the rest, and
+// marks vanished postings removed. It is idempotent: running it twice with the
+// same input changes nothing.
 func (s *Store) SyncPostings(ctx context.Context, src SourceRow, in []PostingInput, opts SyncOptions) (SyncResult, error) {
 	in = dedupe(in)
-	res := SyncResult{Found: len(in)}
+	res := SyncResult{Found: len(in), OutOfScope: len(opts.OutOfScope)}
 
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
@@ -175,8 +221,12 @@ func (s *Store) SyncPostings(ctx context.Context, src SourceRow, in []PostingInp
 	if err != nil {
 		return res, fmt.Errorf("load existing postings: %w", err)
 	}
-	for _, e := range existing {
-		if !e.Removed {
+	oos := make(map[string]bool, len(opts.OutOfScope))
+	for _, id := range opts.OutOfScope {
+		oos[id] = true
+	}
+	for ext, e := range existing {
+		if !e.Removed && !oos[ext] {
 			res.ActiveBefore++
 		}
 	}
@@ -211,8 +261,8 @@ func (s *Store) SyncPostings(ctx context.Context, src SourceRow, in []PostingInp
 		return res, fmt.Errorf("touch jobs: %w", err)
 	}
 
-	// Anything active that we did NOT see is gone from the source, unless the
-	// result looks like a bad response.
+	// Anything active that we did NOT see is gone from the source (or now out of
+	// scope), unless the result looks like a bad response.
 	if drop, why := massDrop(res.ActiveBefore, len(in)); drop && !opts.AllowMassClose {
 		res.SkippedClose, res.SkipReason = true, why
 	} else if err := closeMissing(ctx, tx, src.ID, ids, &res); err != nil {
@@ -230,29 +280,74 @@ func insertNew(ctx context.Context, tx pgx.Tx, src SourceRow, fresh []PostingInp
 		return nil
 	}
 
-	// 1) canonical jobs
-	b := &pgx.Batch{}
+	// 1) Which fingerprints already have a canonical job? Identical postings
+	// (e.g. several openings of one role) share a single job.
+	jobByFP := map[string]int64{}
+	var fps []string
 	for _, p := range fresh {
-		j := p.Job
-		b.Queue(insertJobSQL, src.CompanyID, j.Title, j.TitleNormalized, j.Description,
-			j.LocationRaw, j.Country, j.Fingerprint, j.PostedAt)
+		if _, seen := jobByFP[p.Job.Fingerprint]; !seen {
+			jobByFP[p.Job.Fingerprint] = 0
+			fps = append(fps, p.Job.Fingerprint)
+		}
 	}
-	jobIDs := make([]int64, len(fresh))
+	b := &pgx.Batch{}
+	for _, fp := range fps {
+		b.Queue(`SELECT id FROM jobs WHERE company_id = $1 AND fingerprint = $2 ORDER BY id LIMIT 1`, src.CompanyID, fp)
+	}
 	br := tx.SendBatch(ctx, b)
-	for i := range fresh {
-		if err := br.QueryRow().Scan(&jobIDs[i]); err != nil {
+	for _, fp := range fps {
+		var id int64
+		switch err := br.QueryRow().Scan(&id); err {
+		case nil:
+			jobByFP[fp] = id
+		case pgx.ErrNoRows:
+		default:
 			br.Close()
-			return fmt.Errorf("insert job %q: %w", fresh[i].ExternalID, err)
+			return fmt.Errorf("look up job by fingerprint: %w", err)
 		}
 	}
 	if err := br.Close(); err != nil {
 		return err
 	}
 
-	// 2) postings
+	// 2) Create canonical jobs for the fingerprints that have none yet.
+	var creators []PostingInput
+	creatorSeen := map[string]bool{}
+	for _, p := range fresh {
+		fp := p.Job.Fingerprint
+		if jobByFP[fp] == 0 && !creatorSeen[fp] {
+			creatorSeen[fp] = true
+			creators = append(creators, p)
+		}
+	}
+	if len(creators) > 0 {
+		b = &pgx.Batch{}
+		for _, p := range creators {
+			b.Queue(insertJobSQL, append([]any{src.CompanyID}, derivedArgs(p.Job)...)...)
+		}
+		br = tx.SendBatch(ctx, b)
+		places := map[int64][]Place{}
+		for _, p := range creators {
+			var id int64
+			if err := br.QueryRow().Scan(&id); err != nil {
+				br.Close()
+				return fmt.Errorf("insert job %q: %w", p.ExternalID, err)
+			}
+			jobByFP[p.Job.Fingerprint] = id
+			places[id] = p.Job.Places
+		}
+		if err := br.Close(); err != nil {
+			return err
+		}
+		if err := replaceJobLocations(ctx, tx, places); err != nil {
+			return err
+		}
+	}
+
+	// 3) postings
 	b = &pgx.Batch{}
-	for i, p := range fresh {
-		b.Queue(insertPostingSQL, jobIDs[i], src.ID, p.ExternalID, p.URL, p.TitleRaw, p.LocationRaw, p.ContentHash)
+	for _, p := range fresh {
+		b.Queue(insertPostingSQL, jobByFP[p.Job.Fingerprint], src.ID, p.ExternalID, p.URL, p.TitleRaw, p.LocationRaw, p.ContentHash)
 	}
 	postingIDs := make([]int64, len(fresh))
 	br = tx.SendBatch(ctx, b)
@@ -266,7 +361,7 @@ func insertNew(ctx context.Context, tx pgx.Tx, src SourceRow, fresh []PostingInp
 		return err
 	}
 
-	// 3) raw payloads
+	// 4) raw payloads
 	b = &pgx.Batch{}
 	for i, p := range fresh {
 		b.Queue(upsertRawSQL, postingIDs[i], p.ContentHash, p.RawGzip)
@@ -280,19 +375,25 @@ func updateChanged(ctx context.Context, tx pgx.Tx, changed []changedPosting) err
 	}
 	b := &pgx.Batch{}
 	n := 0
+	places := map[int64][]Place{}
 	for _, c := range changed {
-		p, j := c.Input, c.Input.Job
+		p := c.Input
 		b.Queue(updatePostingSQL, c.Existing.ID, p.URL, p.TitleRaw, p.LocationRaw, p.ContentHash)
 		n++
-		if c.Existing.JobID != nil {
-			b.Queue(updateJobSQL, *c.Existing.JobID, j.Title, j.TitleNormalized, j.Description,
-				j.LocationRaw, j.Country, j.Fingerprint, j.PostedAt)
+		// Only the oldest posting of a job may rewrite the job: with several
+		// postings per job, otherwise the last one fetched would win.
+		if c.Existing.JobID != nil && c.Existing.IsPrimary {
+			b.Queue(updateJobSQL, append([]any{*c.Existing.JobID}, derivedArgs(p.Job)...)...)
 			n++
+			places[*c.Existing.JobID] = p.Job.Places
 		}
 		b.Queue(upsertRawSQL, c.Existing.ID, p.ContentHash, p.RawGzip)
 		n++
 	}
-	return execBatch(ctx, tx, b, n, "update changed posting")
+	if err := execBatch(ctx, tx, b, n, "update changed posting"); err != nil {
+		return err
+	}
+	return replaceJobLocations(ctx, tx, places)
 }
 
 func execBatch(ctx context.Context, tx pgx.Tx, b *pgx.Batch, n int, what string) error {

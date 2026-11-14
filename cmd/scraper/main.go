@@ -1,7 +1,8 @@
 // Command scraper is the entry point for the job-scraper pipeline.
 //
-// Phase 2 commands: migrate*, ping, seed, run, run-due, sources, enable,
-// disable, stats, version. Pruning arrives in a later phase.
+// Commands: migrate*, ping, seed, run, run-due, sources, enable, disable,
+// stats, renormalize, dedup, quality, seed-locations, version.
+// Pruning arrives in a later phase.
 package main
 
 import (
@@ -21,12 +22,13 @@ import (
 	"jobscraper/internal/fetcher/ashby"
 	"jobscraper/internal/fetcher/greenhouse"
 	"jobscraper/internal/fetcher/lever"
+	"jobscraper/internal/normalizer"
 	"jobscraper/internal/pipeline"
 	"jobscraper/internal/store"
 	"jobscraper/internal/validator"
 )
 
-const version = "0.3.0-phase2"
+const version = "0.4.0-phase3"
 
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
@@ -76,6 +78,14 @@ func run(ctx context.Context, args []string) error {
 		return cmdToggle(ctx, cfg, cmd == "enable", rest)
 	case "stats":
 		return cmdStats(ctx, cfg)
+	case "renormalize":
+		return cmdRenormalize(ctx, cfg)
+	case "dedup":
+		return cmdDedup(ctx, cfg)
+	case "quality":
+		return cmdQuality(ctx, cfg)
+	case "seed-locations":
+		return cmdSeedLocations(ctx, cfg)
 	case "prune":
 		return fmt.Errorf("%q is not implemented yet (planned for a later phase)", cmd)
 	default:
@@ -147,6 +157,8 @@ func newRunner(ctx context.Context, cfg *config.Config) (*pipeline.Runner, func(
 		Adapters:    byKind,
 		Log:         slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelInfo})),
 		MaxFailures: cfg.MaxFailures,
+
+		TargetCountries: cfg.TargetCountries,
 	}
 	return r, pool.Close, nil
 }
@@ -321,20 +333,22 @@ func cmdRunDue(ctx context.Context, cfg *config.Config, args []string) error {
 // report prints a table of outcomes and returns an error if any source failed.
 // Partial and skipped runs are shown but do not fail the command.
 func report(outs []pipeline.Outcome) error {
-	fmt.Printf("\n%-26s %-9s %6s %5s %5s %6s  %s\n", "SOURCE", "STATUS", "FOUND", "NEW", "UPD", "CLOSED", "TOOK")
-	var found, nw, upd, closed int
+	fmt.Printf("\n%-26s %-9s %6s %5s %5s %6s %6s  %s\n", "SOURCE", "STATUS", "FOUND", "NEW", "UPD", "CLOSED", "OUT", "TOOK")
+	var found, nw, upd, closed, outScope int
 	counts := map[string]int{}
 	for _, o := range outs {
 		counts[o.Status]++
 		found, nw, upd, closed = found+o.Result.Found, nw+o.Result.New, upd+o.Result.Updated, closed+o.Result.Closed
+		outScope += o.Result.OutOfScope
 		took := "-"
 		if o.Took > 0 {
 			took = o.Took.Round(100 * time.Millisecond).String()
 		}
-		fmt.Printf("%-26s %-9s %6d %5d %5d %6d  %s\n", o.Source.String(), o.Status,
-			o.Result.Found, o.Result.New, o.Result.Updated, o.Result.Closed, took)
+		fmt.Printf("%-26s %-9s %6d %5d %5d %6d %6d  %s\n", o.Source.String(), o.Status,
+			o.Result.Found, o.Result.New, o.Result.Updated, o.Result.Closed, o.Result.OutOfScope, took)
 	}
-	fmt.Printf("%-26s %-9s %6d %5d %5d %6d\n", "TOTAL", "", found, nw, upd, closed)
+	fmt.Printf("%-26s %-9s %6d %5d %5d %6d %6d\n", "TOTAL", "", found, nw, upd, closed, outScope)
+	fmt.Println("(FOUND counts in-scope jobs only; OUT = listed by the source but outside the target countries, not stored)")
 
 	problems := false
 	for _, o := range outs {
@@ -444,6 +458,134 @@ func cmdStats(ctx context.Context, cfg *config.Config) error {
 	return nil
 }
 
+func seedLocations(ctx context.Context, r *pipeline.Runner) (int, int, error) {
+	var refs []store.CityRef
+	for _, c := range normalizer.Cities() {
+		if len(r.TargetCountries) > 0 && !contains(r.TargetCountries, c.Country) {
+			continue
+		}
+		refs = append(refs, store.CityRef{Name: c.Name, Region: c.Region, Country: c.Country, Aliases: c.Aliases})
+	}
+	return r.Store.SeedLocations(ctx, refs)
+}
+
+func contains(list []string, s string) bool {
+	for _, x := range list {
+		if x == s {
+			return true
+		}
+	}
+	return false
+}
+
+func cmdSeedLocations(ctx context.Context, cfg *config.Config) error {
+	r, closeDB, err := newRunner(ctx, cfg)
+	if err != nil {
+		return err
+	}
+	defer closeDB()
+	locs, aliases, err := seedLocations(ctx, r)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("seeded %d locations and %d city aliases (countries: %s)\n", locs, aliases, scopeLabel(r.TargetCountries))
+	return nil
+}
+
+func scopeLabel(targets []string) string {
+	if len(targets) == 0 {
+		return "all"
+	}
+	return strings.Join(targets, ",")
+}
+
+// cmdRenormalize re-derives all stale jobs from their stored raw payloads (no
+// scraping), then merges any identical jobs it produced.
+func cmdRenormalize(ctx context.Context, cfg *config.Config) error {
+	r, closeDB, err := newRunner(ctx, cfg)
+	if err != nil {
+		return err
+	}
+	defer closeDB()
+
+	if _, _, err := seedLocations(ctx, r); err != nil {
+		return fmt.Errorf("seed locations: %w", err)
+	}
+	start := time.Now()
+	res, err := r.Renormalize(ctx, 250)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("renormalized %d jobs in %s (%d failed, %d still below version %d)\n",
+		res.Updated, time.Since(start).Round(time.Second), res.Failed, res.Remained, normalizer.Version)
+
+	d, err := r.Store.Dedup(ctx, normalizer.Version)
+	if err != nil {
+		return fmt.Errorf("dedup: %w", err)
+	}
+	fmt.Printf("dedup: merged %d duplicate jobs into %d (identical company, title, place and description)\n", d.Removed, d.Groups)
+	if res.Failed > 0 {
+		return fmt.Errorf("%d jobs could not be re-derived", res.Failed)
+	}
+	return nil
+}
+
+func cmdDedup(ctx context.Context, cfg *config.Config) error {
+	r, closeDB, err := newRunner(ctx, cfg)
+	if err != nil {
+		return err
+	}
+	defer closeDB()
+	d, err := r.Store.Dedup(ctx, normalizer.Version)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("dedup: merged %d duplicate jobs into %d\n", d.Removed, d.Groups)
+	return nil
+}
+
+func cmdQuality(ctx context.Context, cfg *config.Config) error {
+	r, closeDB, err := newRunner(ctx, cfg)
+	if err != nil {
+		return err
+	}
+	defer closeDB()
+	q, err := r.Store.Quality(ctx, normalizer.Version)
+	if err != nil {
+		return err
+	}
+	pct := func(n, d int) string {
+		if d == 0 {
+			return "  -"
+		}
+		return fmt.Sprintf("%3d%%", n*100/d)
+	}
+	fmt.Printf("open jobs: %d  (normalized with rules v%d: %d)\n", q.Open, normalizer.Version, q.Normalized)
+	fmt.Printf("  country resolved   %6d  %s\n", q.CountryKnown, pct(q.CountryKnown, q.Open))
+	fmt.Printf("  in India           %6d  %s\n", q.India, pct(q.India, q.Open))
+	fmt.Printf("    with a city      %6d  %s of India jobs\n", q.IndiaWithCity, pct(q.IndiaWithCity, q.India))
+	fmt.Printf("  several locations  %6d  %s\n", q.MultiLocation, pct(q.MultiLocation, q.Open))
+	fmt.Printf("  remote type known  %6d  %s\n", q.RemoteKnown, pct(q.RemoteKnown, q.Open))
+	fmt.Printf("  seniority known    %6d  %s\n", q.SeniorityKnown, pct(q.SeniorityKnown, q.Open))
+	fmt.Printf("  employment known   %6d  %s\n", q.EmploymentKnown, pct(q.EmploymentKnown, q.Open))
+	fmt.Printf("  experience parsed  %6d  %s   (only when the description states it)\n", q.ExperienceKnown, pct(q.ExperienceKnown, q.Open))
+	fmt.Printf("  salary parsed      %6d  %s   (only when the posting states it)\n", q.SalaryKnown, pct(q.SalaryKnown, q.Open))
+	printCounts := func(title string, cs []store.Count) {
+		if len(cs) == 0 {
+			return
+		}
+		fmt.Printf("\n%s\n", title)
+		for _, c := range cs {
+			fmt.Printf("  %6d  %s\n", c.N, c.Label)
+		}
+	}
+	printCounts("India jobs by city (top 12):", q.IndiaCities)
+	printCounts("India jobs by work arrangement:", q.IndiaRemote)
+	printCounts("India jobs by seniority:", q.IndiaSeniority)
+	printCounts("Locations still unresolved (no country) - add to the reference data if any are Indian:", q.Unresolved)
+	return nil
+}
+
 func fmtEvery(d time.Duration) string {
 	if d > 0 && d%(24*time.Hour) == 0 {
 		return fmt.Sprintf("%dd", int(d/(24*time.Hour)))
@@ -479,6 +621,12 @@ Source health:
   disable kind:token             stop scraping a source
   stats                          counts, per-source status and database size
 
+Data quality:
+  renormalize                    re-derive stale jobs from stored raw payloads (no scraping), then dedup
+  dedup                          merge identical jobs (same company, title, place and description)
+  quality                        coverage of location, remote type, seniority, experience, salary
+  seed-locations                 load reference cities and aliases into the database
+
 Database:
   migrate | migrate-down | migrate-status | ping
 
@@ -486,6 +634,7 @@ Other:
   version
 
 Sources: greenhouse, lever, ashby. Settings come from environment variables or a
-.env file: DATABASE_URL, USER_AGENT, SCRAPE_MIN_INTERVAL, SCRAPE_MAX_FAILURES.
+.env file: DATABASE_URL, USER_AGENT, SCRAPE_MIN_INTERVAL, SCRAPE_MAX_FAILURES,
+TARGET_COUNTRIES (default IN; jobs located only elsewhere are not stored, ALL disables).
 `)
 }

@@ -1,7 +1,8 @@
-// Package pipeline wires a source adapter to the database: fetch, convert, sync,
-// and record the run. Politeness (robots.txt, rate limits, retries) is handled
-// inside the HTTP client the adapters are built with; reliability across runs
-// (run lock, circuit breaker, mass-drop guard) is handled here and in the store.
+// Package pipeline wires a source adapter to the database: fetch, normalize,
+// scope-filter, sync, and record the run. Politeness (robots.txt, rate limits,
+// retries) is handled inside the HTTP client the adapters are built with;
+// reliability across runs (run lock, circuit breaker, mass-drop guard) is handled
+// here and in the store.
 package pipeline
 
 import (
@@ -32,11 +33,12 @@ const (
 const DefaultMaxFailures = 5
 
 type Runner struct {
-	Store          *store.Store
-	Adapters       map[string]fetcher.Adapter // keyed by source kind
-	Log            *slog.Logger
-	MaxFailures    int  // 0 means DefaultMaxFailures
-	AllowMassClose bool // override the mass-drop guard
+	Store           *store.Store
+	Adapters        map[string]fetcher.Adapter // keyed by source kind
+	Log             *slog.Logger
+	MaxFailures     int      // 0 means DefaultMaxFailures
+	AllowMassClose  bool     // override the mass-drop guard
+	TargetCountries []string // ISO codes to keep; empty keeps everything
 }
 
 // Outcome is the result of running one source.
@@ -149,7 +151,7 @@ func (r *Runner) RunSource(ctx context.Context, src store.SourceRow) Outcome {
 
 	log.Info("run finished", "status", out.Status, "found", res.Found, "new", res.New,
 		"updated", res.Updated, "unchanged", res.Unchanged, "closed", res.Closed,
-		"took", out.Took.Round(time.Millisecond))
+		"out_of_scope", res.OutOfScope, "took", out.Took.Round(time.Millisecond))
 	if tripped {
 		log.Warn("source auto-disabled by circuit breaker", "failures", r.maxFailures())
 	}
@@ -197,30 +199,47 @@ func (r *Runner) fetchAndSync(ctx context.Context, a fetcher.Adapter, src store.
 		return store.SyncResult{}, fmt.Errorf("fetch: %w", err)
 	}
 	inputs := make([]store.PostingInput, 0, len(jobs))
+	var outOfScope []string
 	for _, j := range jobs {
 		in, err := toInput(src.CompanyID, j)
 		if err != nil {
 			return store.SyncResult{}, err
 		}
+		if !InScope(in.Job.Places, r.TargetCountries) {
+			outOfScope = append(outOfScope, j.ExternalID)
+			continue
+		}
 		inputs = append(inputs, in)
 	}
-	return r.Store.SyncPostings(ctx, src, inputs, store.SyncOptions{AllowMassClose: r.AllowMassClose})
+	return r.Store.SyncPostings(ctx, src, inputs, store.SyncOptions{
+		AllowMassClose: r.AllowMassClose,
+		OutOfScope:     outOfScope,
+	})
 }
 
-// toInput converts a fetched job into the storage shape, applying the light
-// normalization available before the phase 3 location normalizer.
+// InScope reports whether a job belongs to the target countries. With no
+// targets everything is in scope. A job whose location could not be resolved is
+// kept: dropping it would lose Indian jobs to a parsing gap, and the quality
+// report lists unresolved locations so the rules can be improved.
+func InScope(places []store.Place, targets []string) bool {
+	if len(targets) == 0 || len(places) == 0 {
+		return true
+	}
+	for _, p := range places {
+		for _, t := range targets {
+			if p.Country == t {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// toInput normalizes a fetched job and converts it to the storage shape.
 func toInput(companyID int64, j fetcher.RawJob) (store.PostingInput, error) {
 	gz, err := raw.Compress(j.Payload)
 	if err != nil {
 		return store.PostingInput{}, fmt.Errorf("compress payload for %s: %w", j.ExternalID, err)
-	}
-	titleNorm := normalizer.NormalizeTitle(j.Title)
-
-	// Prefer the country the source states; otherwise fall back to the text hint.
-	country := normalizer.CountryHint(j.Location)
-	if j.Country != "" {
-		c := strings.ToUpper(j.Country)
-		country = &c
 	}
 	return store.PostingInput{
 		ExternalID:  j.ExternalID,
@@ -229,14 +248,122 @@ func toInput(companyID int64, j fetcher.RawJob) (store.PostingInput, error) {
 		LocationRaw: j.Location,
 		ContentHash: j.ContentHash(),
 		RawGzip:     gz,
-		Job: store.JobFields{
-			Title:           j.Title,
-			TitleNormalized: titleNorm,
-			Description:     normalizer.HTMLToText(j.DescriptionHTML),
-			LocationRaw:     j.Location,
-			Country:         country,
-			Fingerprint:     normalizer.Fingerprint(companyID, titleNorm, j.Location),
-			PostedAt:        j.PostedAt,
-		},
+		Job:         jobFields(companyID, j),
 	}, nil
+}
+
+// jobFields derives the canonical-job fields from a fetched job.
+func jobFields(companyID int64, j fetcher.RawJob) store.JobFields {
+	desc := normalizer.HTMLToText(j.DescriptionHTML)
+	n := normalizer.Normalize(normalizer.Input{
+		CompanyID:        companyID,
+		Title:            j.Title,
+		Location:         j.Location,
+		Description:      desc,
+		Department:       j.Department,
+		SourceCountry:    j.Country,
+		SourceRemote:     j.Remote,
+		SourceEmployment: j.Employment,
+		SourceSalary:     sourceSalary(j),
+	})
+
+	f := store.JobFields{
+		Title:           j.Title,
+		TitleNormalized: n.TitleNormalized,
+		Description:     desc,
+		LocationRaw:     j.Location,
+		Fingerprint:     n.Fingerprint,
+		PostedAt:        j.PostedAt,
+		RemoteType:      strPtr(n.RemoteType),
+		Seniority:       strPtr(n.Seniority),
+		EmploymentType:  strPtr(n.EmploymentType),
+		ExpMin:          n.ExpMin,
+		ExpMax:          n.ExpMax,
+		NormVersion:     n.Version,
+	}
+	for _, p := range n.Places {
+		f.Places = append(f.Places, store.Place{City: p.City, Region: p.Region, Country: p.Country})
+	}
+	if p := n.Primary(); p.Country != "" {
+		f.City, f.Region, f.Country = strPtr(p.City), strPtr(p.Region), strPtr(p.Country)
+	}
+	if s := n.Salary; s != nil {
+		f.SalaryMin, f.SalaryMax = &s.Min, &s.Max
+		f.SalaryCurrency, f.SalaryPeriod = strPtr(s.Currency), strPtr(s.Period)
+	}
+	return f
+}
+
+func sourceSalary(j fetcher.RawJob) *normalizer.Salary {
+	if j.SalaryMax <= 0 {
+		return nil
+	}
+	return &normalizer.Salary{Min: j.SalaryMin, Max: j.SalaryMax, Currency: j.SalaryCurrency, Period: j.SalaryPeriod}
+}
+
+func strPtr(s string) *string {
+	if s == "" {
+		return nil
+	}
+	return &s
+}
+
+// RenormResult summarises a renormalize run.
+type RenormResult struct {
+	Updated  int
+	Failed   int // payloads that could not be parsed (left at their old version)
+	Remained int // open jobs still below the current version afterwards
+}
+
+// Renormalize re-derives every open job below the current normalizer version
+// from its stored raw payload. No site is contacted: this is the payoff of
+// keeping the original payloads.
+func (r *Runner) Renormalize(ctx context.Context, batchSize int) (RenormResult, error) {
+	var res RenormResult
+	var after int64
+	for {
+		rows, err := r.Store.ListRenormalizable(ctx, normalizer.Version, after, batchSize)
+		if err != nil {
+			return res, err
+		}
+		if len(rows) == 0 {
+			break
+		}
+		ups := make([]store.NormUpdate, 0, len(rows))
+		for _, row := range rows {
+			after = row.JobID
+			a, ok := r.Adapters[row.Kind]
+			if !ok {
+				res.Failed++
+				continue
+			}
+			payload, err := raw.Decompress(row.Body)
+			if err != nil {
+				res.Failed++
+				r.Log.Warn("renormalize: bad stored payload", "job", row.JobID, "err", err)
+				continue
+			}
+			rj, err := a.Parse(payload)
+			if err != nil {
+				res.Failed++
+				r.Log.Warn("renormalize: cannot parse payload", "job", row.JobID, "err", err)
+				continue
+			}
+			ups = append(ups, store.NormUpdate{JobID: row.JobID, Job: jobFields(row.CompanyID, rj)})
+		}
+		if err := r.Store.ApplyNormalization(ctx, ups); err != nil {
+			return res, err
+		}
+		res.Updated += len(ups)
+		r.Log.Info("renormalized", "batch", len(ups), "total", res.Updated)
+		if err := ctx.Err(); err != nil {
+			return res, err
+		}
+	}
+	remained, err := r.Store.CountRenormalizable(ctx, normalizer.Version)
+	if err != nil {
+		return res, err
+	}
+	res.Remained = remained
+	return res, nil
 }
