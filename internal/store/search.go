@@ -35,9 +35,19 @@ type SearchParams struct {
 	HideUnknownExp   bool   // with Exp: also hide jobs that state no requirement
 	PostedWithinDays int
 	HasSalary        bool
+	EntryLevel       bool // fresher / entry level, see entryLevelSQL
 	Sort             string
 	Limit, Offset    int
 }
+
+// entryLevelSQL is the single definition of "fresher / entry level". The search
+// filter and the quick-view counts both use it, so they always agree. A job is
+// entry level when it is never a senior title, and then either states a minimum
+// of at most one year, or (stating none) is an intern or junior role. Jobs with
+// no stated experience and no junior signal are not guessed to be entry level.
+const entryLevelSQL = `(coalesce(j.seniority, '') NOT IN ('senior', 'lead', 'staff', 'principal', 'director', 'executive')
+	AND CASE WHEN j.exp_min_years IS NOT NULL THEN j.exp_min_years <= 1
+	         ELSE coalesce(j.seniority, '') IN ('intern', 'junior') END)`
 
 // Money is a pay range.
 type Money struct {
@@ -132,6 +142,9 @@ func buildSearch(p SearchParams) (string, []any) {
 	}
 	if p.HasSalary {
 		where = append(where, "j.salary_min IS NOT NULL")
+	}
+	if p.EntryLevel {
+		where = append(where, entryLevelSQL)
 	}
 
 	order := "coalesce(j.posted_at, j.first_seen_at) DESC, j.id DESC"
@@ -307,6 +320,14 @@ type Facets struct {
 	Remote     []FacetValue `json:"remote_types"`
 	Seniority  []FacetValue `json:"seniorities"`
 	Employment []FacetValue `json:"employment_types"`
+	Quick      QuickCounts  `json:"quick"`
+}
+
+// QuickCounts are the sizes of the dashboard's quick views.
+type QuickCounts struct {
+	EntryLevel  int `json:"entry_level"`
+	Internships int `json:"internships"`
+	New7Days    int `json:"new_7_days"`
 }
 
 func (s *Store) facetQuery(ctx context.Context, sql string) ([]FacetValue, error) {
@@ -356,7 +377,20 @@ func (s *Store) Facets(ctx context.Context) (Facets, error) {
 			*dst, errs[i] = s.facetQuery(ctx, sql) // each goroutine writes its own field
 		}(i, st.dst, st.sql)
 	}
+	// The quick-view counts run alongside the facet lists (they write a different field).
+	var quickErr error
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		quickErr = s.pool.QueryRow(ctx, `
+			SELECT count(*) FILTER (WHERE `+entryLevelSQL+`)::int,
+			       count(*) FILTER (WHERE j.seniority = 'intern')::int,
+			       count(*) FILTER (WHERE coalesce(j.posted_at, j.first_seen_at) >= now() - interval '7 days')::int
+			FROM jobs j WHERE j.closed_at IS NULL`).
+			Scan(&f.Quick.EntryLevel, &f.Quick.Internships, &f.Quick.New7Days)
+	}()
 	wg.Wait()
+	errs = append(errs, quickErr)
 	for _, err := range errs {
 		if err != nil {
 			return Facets{}, fmt.Errorf("facets: %w", err)

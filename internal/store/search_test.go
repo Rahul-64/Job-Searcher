@@ -22,6 +22,24 @@ func TestBuildSearchDefaults(t *testing.T) {
 	}
 }
 
+func TestBuildSearchEntryLevel(t *testing.T) {
+	sql, args := buildSearch(SearchParams{EntryLevel: true, Limit: 20})
+	if !strings.Contains(sql, "'intern', 'junior'") || !strings.Contains(sql, "exp_min_years <= 1") {
+		t.Errorf("entry-level condition missing: %s", sql)
+	}
+	for _, senior := range []string{"'senior'", "'lead'", "'staff'", "'principal'", "'director'", "'executive'"} {
+		if !strings.Contains(sql, senior) {
+			t.Errorf("entry level must exclude %s", senior)
+		}
+	}
+	if len(args) != 2 { // only limit and offset: the rule is a constant, not user input
+		t.Errorf("entry level must not add bound values: %v", args)
+	}
+	if sql, _ := buildSearch(SearchParams{Limit: 20}); strings.Contains(sql, "'intern', 'junior'") {
+		t.Error("entry-level condition must be absent unless asked for")
+	}
+}
+
 func TestBuildSearchBindsEveryValue(t *testing.T) {
 	exp := 5
 	nasty := `x'); DROP TABLE jobs; --`

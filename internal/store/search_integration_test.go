@@ -293,3 +293,75 @@ func TestJobDetailFacetsStatsAndSourceHealth(t *testing.T) {
 		t.Errorf("closed job detail: %+v, %v", d, err)
 	}
 }
+
+// The fresher / entry-level rule is the part of search users rely on most, so it is
+// tested against the real SQL with the awkward cases: a senior title that states
+// one year, a junior title that states four, and jobs with no signal at all.
+func TestEntryLevelFilterAndQuickCounts(t *testing.T) {
+	ctx, s, src, _ := newEnv(t, "entry")
+	const slug = "zz-itest-entry"
+	before, err := s.Facets(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	now := time.Now()
+	specs := []struct {
+		jobSpec
+		entry bool
+	}{
+		{jobSpec{id: "1", title: "Associate Engineer", senior: "junior", expMin: ip(0)}, true},
+		{jobSpec{id: "2", title: "Product Intern", senior: "intern"}, true}, // no years stated, intern
+		{jobSpec{id: "3", title: "Senior Support Specialist", senior: "senior"}, false},
+		{jobSpec{id: "4", title: "Staff Engineer", senior: "staff", expMin: ip(1)}, false}, // senior title wins
+		{jobSpec{id: "5", title: "Analyst", expMin: ip(1)}, true},                          // stated 1 year, no level
+		{jobSpec{id: "6", title: "Manager"}, false},                                        // no signal at all
+		{jobSpec{id: "7", title: "Specialist", senior: "mid", expMin: ip(3)}, false},
+		{jobSpec{id: "8", title: "Junior Associate", senior: "junior", expMin: ip(4)}, false}, // junior but asks 4 years
+	}
+	want := map[string]bool{}
+	var in []PostingInput
+	for _, sp := range specs {
+		sp.posted = now
+		sp.desc = "entry level test"
+		in = append(in, sp.posting())
+		want[sp.id] = sp.entry
+	}
+	if res, err := s.SyncPostings(ctx, src, in, SyncOptions{}); err != nil || res.New != len(specs) {
+		t.Fatalf("seed: %+v, %v", res, err)
+	}
+
+	res, err := s.SearchJobs(ctx, SearchParams{Company: slug, EntryLevel: true, Limit: 50})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := map[string]bool{}
+	for _, j := range res.Jobs {
+		got[j.URL[len(j.URL)-1:]] = true
+	}
+	for id, isEntry := range want {
+		if got[id] != isEntry {
+			t.Errorf("job %s: entry-level = %v, want %v", id, got[id], isEntry)
+		}
+	}
+	if res.Total != 3 {
+		t.Errorf("entry-level total %d, want 3 (jobs 1, 2, 5)", res.Total)
+	}
+
+	// The quick-view counts use the same rule: seeding 3 entry-level jobs, 1 intern
+	// and 8 new jobs moves the counts by exactly that (compared with the live data,
+	// which no other test touches).
+	after, err := s.Facets(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if d := after.Quick.EntryLevel - before.Quick.EntryLevel; d != 3 {
+		t.Errorf("entry-level count moved by %d, want 3", d)
+	}
+	if d := after.Quick.Internships - before.Quick.Internships; d != 1 {
+		t.Errorf("internships count moved by %d, want 1", d)
+	}
+	if d := after.Quick.New7Days - before.Quick.New7Days; d != len(specs) {
+		t.Errorf("new-this-week count moved by %d, want %d", d, len(specs))
+	}
+}

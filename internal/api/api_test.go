@@ -112,6 +112,18 @@ func TestJobsHappyPath(t *testing.T) {
 	}
 }
 
+func TestJobsEntryLevelParameter(t *testing.T) {
+	for query, want := range map[string]bool{"": false, "entry_level=1": true, "entry_level=true": true, "entry_level=0": false} {
+		f := &fakeStore{}
+		if rec := do(newTestServer(f), "GET", "/api/jobs?"+query); rec.Code != 200 {
+			t.Fatalf("%q: status %d", query, rec.Code)
+		}
+		if f.lastSearch.EntryLevel != want {
+			t.Errorf("%q: EntryLevel = %v, want %v", query, f.lastSearch.EntryLevel, want)
+		}
+	}
+}
+
 func TestJobsDefaults(t *testing.T) {
 	f := &fakeStore{}
 	do(newTestServer(f), "GET", "/api/jobs")
@@ -141,6 +153,7 @@ func TestJobsRejectsBadParameters(t *testing.T) {
 		"sort=random":                     "sort",
 		"has_salary=maybe":                "has_salary",
 		"hide_unknown_exp=maybe":          "hide_unknown_exp",
+		"entry_level=maybe":               "entry_level",
 		"q=" + strings.Repeat("a", 201):   "q",
 		"city=" + strings.Repeat("a", 61): "city",
 	}
