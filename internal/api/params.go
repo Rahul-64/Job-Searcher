@@ -22,6 +22,7 @@ var (
 	remoteValues     = set("remote", "hybrid", "onsite")
 	seniorityValues  = set("intern", "junior", "mid", "senior", "lead", "staff", "principal", "director", "executive")
 	employmentValues = set("full_time", "part_time", "contract", "intern", "temporary")
+	roleValues       = set(store.RoleTech, "software", "ai_data", "infra_security", "qa")
 	slugRe           = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]{0,99}$`)
 	countryRe        = regexp.MustCompile(`^[A-Za-z]{2}$`)
 )
@@ -72,6 +73,9 @@ func parseSearch(v url.Values) (store.SearchParams, error) {
 		return p, err
 	}
 	if p.Employment, err = oneOf(v, "employment", employmentValues); err != nil {
+		return p, err
+	}
+	if p.Role, err = oneOf(v, "role", roleValues); err != nil {
 		return p, err
 	}
 

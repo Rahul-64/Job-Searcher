@@ -54,6 +54,25 @@ func TestBuildSearchEntryLevel(t *testing.T) {
 	}
 }
 
+func TestBuildSearchRole(t *testing.T) {
+	sql, args := buildSearch(SearchParams{Role: RoleTech, Limit: 20})
+	if !strings.Contains(whereOf(sql), "j.role_family IS NOT NULL") || len(args) != 2 {
+		t.Errorf("role=tech should need no bound value: %s %v", whereOf(sql), args)
+	}
+	sql, args = buildSearch(SearchParams{Role: "software", Limit: 20})
+	if !strings.Contains(whereOf(sql), "j.role_family = $1") || len(args) != 3 || args[0] != "software" {
+		t.Errorf("a family must be a bound value: %s %v", whereOf(sql), args)
+	}
+	nasty := "x'); DROP TABLE jobs; --"
+	sql, _ = buildSearch(SearchParams{Role: nasty, Limit: 20})
+	if strings.Contains(sql, "DROP") {
+		t.Error("role text leaked into SQL")
+	}
+	if sql, _ := buildSearch(SearchParams{Limit: 20}); strings.Contains(whereOf(sql), "role_family") {
+		t.Error("no role, no role clause")
+	}
+}
+
 func TestBuildSearchBindsEveryValue(t *testing.T) {
 	exp := 5
 	nasty := `x'); DROP TABLE jobs; --`

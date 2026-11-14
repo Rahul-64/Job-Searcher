@@ -77,12 +77,12 @@ func (s *Store) ApplyNormalization(ctx context.Context, ups []NormUpdate) error 
 			UPDATE jobs SET title_normalized=$2, city=$3, region=$4, country=$5, remote_type=$6,
 			  seniority=$7, employment_type=$8, exp_min_years=$9, exp_max_years=$10,
 			  salary_min=$11, salary_max=$12, salary_currency=$13, salary_period=$14,
-			  fingerprint=$15, norm_version=$16
+			  fingerprint=$15, norm_version=$16, role_family=$17
 			WHERE id = $1`,
 			u.JobID, j.TitleNormalized, j.City, j.Region, j.Country, j.RemoteType,
 			j.Seniority, j.EmploymentType, j.ExpMin, j.ExpMax,
 			j.SalaryMin, j.SalaryMax, j.SalaryCurrency, j.SalaryPeriod,
-			j.Fingerprint, j.NormVersion)
+			j.Fingerprint, j.NormVersion, j.RoleFamily)
 		places[u.JobID] = j.Places
 	}
 	if err := execBatch(ctx, tx, b, len(ups), "update job normalization"); err != nil {

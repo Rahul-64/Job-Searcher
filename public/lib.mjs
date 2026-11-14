@@ -15,6 +15,21 @@ const LABELS = {
   onsite: "On-site",
 };
 
+/** Role filter values, in the order the sidebar lists them. "tech" is every technical family. */
+export const ROLES = [
+  ["tech", "Software & AI roles"],
+  ["software", "Software engineering"],
+  ["ai_data", "AI, ML & data"],
+  ["infra_security", "DevOps, cloud & security"],
+  ["qa", "QA & test"],
+];
+
+/** "ai_data" -> "AI, ML & data"; "" for anything else. */
+export function roleLabel(value) {
+  const r = ROLES.find(([v]) => v === value);
+  return r ? r[1] : "";
+}
+
 /** "full_time" -> "Full-time"; unknown values are capitalised. */
 export function label(value) {
   if (!value) return "";
@@ -35,7 +50,7 @@ export function safeHref(url) {
 /** Filter state <-> URL query string. Keys match the API parameters. */
 const FILTER_KEYS = [
   "q", "city", "company", "remote", "seniority", "employment",
-  "exp", "hide_unknown_exp", "posted_within", "has_salary", "entry_level", "sort",
+  "exp", "hide_unknown_exp", "posted_within", "has_salary", "entry_level", "role", "sort",
 ];
 
 export function stateFromSearch(search) {
@@ -222,6 +237,7 @@ export function activeFilters(state, companyName = (slug) => slug) {
     if (state.posted_within) out.push({ key: "posted_within", text: `Posted in ${state.posted_within === "1" ? "24 hours" : state.posted_within + " days"}` });
   }
   if (state.q) out.push({ key: "q", text: `“${state.q}”` });
+  if (state.role) out.push({ key: "role", text: roleLabel(state.role) || state.role });
   if (state.city) out.push({ key: "city", text: state.city });
   if (state.company) out.push({ key: "company", text: companyName(state.company) });
   if (state.exp !== undefined && state.exp !== "") {

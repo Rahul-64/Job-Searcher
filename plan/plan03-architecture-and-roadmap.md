@@ -164,6 +164,16 @@ Triggered by real use: a fresher search returned almost nothing useful.
 - Known limits: the three systems we scrape (Greenhouse, Lever, Ashby) skew senior. More fresher jobs need other sources (Workday, SmartRecruiters, career pages, Naukri/Instahyre) — Phase 6
 - Still open data quality: global "Remote" roles and macro-regions ("EMEA", "N/A") stay unresolved on purpose
 
+### Phase 4c — Tech focus and big-company sources
+Triggered by real use: a software developer saw HR, finance and sales jobs, and none of the big names.
+- [x] Measured first: of 1,364 open jobs about 540 were software-ish (the rest HR, finance, sales, support); none of Google, Amazon, Microsoft, Apple, Meta, Netflix, Uber, Adobe or Salesforce were present
+- [x] **Role family** on every job (software, AI/ML/data, DevOps/cloud/security, QA), derived from title + department (normalizer v4–v8), with a `role` API filter, role counts in the facets, and a Role control in the sidebar. Reviewed on real data in three rounds; each round found a real mistake (product managers labelled AI, "Staff Engineer" missed because departments are team names, Amazon's shorthand BIE/QAE, warehouse technicians)
+- [x] **Amazon** source (amazon.jobs search API, India, technical categories only): 574 jobs, 535 after merging duplicates, 501 with years of experience parsed
+- [x] **Atlassian** source (one JSON listing): 34 India jobs
+- [x] Checked each candidate's robots.txt and API before promising anything. **Not built, on purpose:** Naukri and LinkedIn (terms; Naukri also stalls identified bots), Meta (robots.txt prohibits automated collection), Google (disallows paging), Uber (disallows /api/), SmartRecruiters (api host disallows /)
+- [ ] Next: **Workday** (Adobe, Salesforce, Nvidia, Intel, Walmart, Qualcomm, Dell, Mastercard, …: public career sites whose robots.txt allows crawling; a list call plus a detail call per job) and **Eightfold** (Microsoft, Netflix: robots.txt explicitly allows /api/pcsx). Apple needs a token handshake and is skipped for now
+- [x] Tests: 111 role-classification cases, 1 new database test for the role filter and counts (4 search database tests in all), 7 Amazon and 4 Atlassian adapter tests (fixtures are real jobs), 18 dashboard helper tests
+
 ### Phase 5 — Intelligence & alerts
 - [ ] P1 tables live: skills taxonomy + `job_skills`, multi-location
 - [ ] Optional LLM enrichment for descriptions the rules miss (batched, cached)

@@ -11,7 +11,14 @@ import (
 // alter any derived field; `scraper renormalize` then re-derives stored jobs
 // from their raw payloads, without re-scraping.
 // v2: " or " separates locations, "<descriptor> US" resolves to the country, more macro regions.
-const Version = 3
+// v3: "Bangkok based" and similar words are ignored, Indiana cities are no longer read as India.
+// v4: role family (software, AI/data, infra/security, QA) is derived from the title and department.
+// v5: role family reworked after checking it on real jobs (product managers are not engineers,
+// a bare "Staff Engineer" is software unless its department is sales/support/IT).
+// v6: a few missed technical titles (vulnerability, cloud operations, monitoring, forward deployed).
+// v7: Amazon's shorthand (BIE, QAE) and "Applied Science" titles.
+// v8: technicians (e.g. warehouse quality assurance technicians) are not software roles.
+const Version = 8
 
 // Input is everything the normalizer may use about one posting.
 type Input struct {
@@ -38,6 +45,7 @@ type Output struct {
 	ExpMin, ExpMax  *int
 	Salary          *Salary
 	Fingerprint     string
+	RoleFamily      string // software | ai_data | infra_security | qa, or "" for any other kind of job
 	Version         int
 }
 
@@ -55,6 +63,7 @@ func Normalize(in Input) Output {
 
 	out.TitleNormalized = NormalizeTitle(in.Title)
 	out.Seniority = Seniority(out.TitleNormalized)
+	out.RoleFamily = RoleFamily(in.Title, in.Department)
 
 	loc := ParseLocation(in.Location)
 	out.Places = loc.Places

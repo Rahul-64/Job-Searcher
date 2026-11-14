@@ -6,12 +6,12 @@
 import {
   label, safeHref, stateFromSearch, searchFromState, apiQuery, pageInfo,
   formatSalary, formatExp, formatLocation, timeAgo, formatCount, splitHighlights,
-  VIEWS, activeView, applyView, removeFilter, activeFilters,
+  VIEWS, activeView, applyView, removeFilter, activeFilters, ROLES, roleLabel,
 } from "./lib.mjs";
 
 const $ = (id) => document.getElementById(id);
 
-const SELECTS = ["city", "company", "seniority", "employment", "posted_within"];
+const SELECTS = ["role", "city", "company", "seniority", "employment", "posted_within"];
 const SEGMENTS = {
   exp: [["", "Any"], ["0", "0"], ["1", "1"], ["2", "2"], ["3", "3"], ["5", "5"]],
   remote: [["", "Any"], ["remote", "Remote"], ["hybrid", "Hybrid"], ["onsite", "On-site"]],
@@ -321,6 +321,7 @@ function renderPane(j) {
   const facts = el("dl", "facts");
   for (const [k, v] of [
     ["Experience", formatExp(j.exp_min, j.exp_max)],
+    ["Role", roleLabel(j.role_family) || "Not an engineering role"],
     ["Level", label(j.seniority)],
     ["Work arrangement", label(j.remote_type)],
     ["Employment", label(j.employment_type)],
@@ -370,9 +371,21 @@ function fillSelect(id, values, text) {
   }));
 }
 
+function fillRoles(f) {
+  const select = $("role");
+  const counts = Object.fromEntries((f.roles || []).map((r) => [r.value, r.count]));
+  counts.tech = f.quick.tech;
+  select.replaceChildren(select.options[0], ...ROLES.map(([value, text]) => {
+    const o = el("option", "", `${text} (${formatCount(counts[value] || 0)})`);
+    o.value = value;
+    return o;
+  }));
+}
+
 async function loadFacets() {
   try {
     const f = await api("facets");
+    fillRoles(f);
     companyNames = Object.fromEntries(f.companies.map((c) => [c.value, c.label || c.value]));
     fillSelect("city", f.cities, (v) => v.value);
     fillSelect("company", f.companies, (v) => v.label || v.value);

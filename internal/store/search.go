@@ -35,10 +35,14 @@ type SearchParams struct {
 	HideUnknownExp   bool   // with Exp: also hide jobs that state no requirement
 	PostedWithinDays int
 	HasSalary        bool
-	EntryLevel       bool // fresher / entry level, see entryLevelSQL
+	EntryLevel       bool   // fresher / entry level, see entryLevelSQL
+	Role             string // "tech" (any technical role) or one family: software, ai_data, infra_security, qa
 	Sort             string
 	Limit, Offset    int
 }
+
+// RoleTech is the Role filter value for "any technical role family".
+const RoleTech = "tech"
 
 // entryLevelSQL is the single definition of "fresher / entry level". The search
 // filter and the quick-view counts both use it, so they always agree. A job is
@@ -76,6 +80,7 @@ type JobSummary struct {
 	RemoteType    *string    `json:"remote_type"`
 	Seniority     *string    `json:"seniority"`
 	Employment    *string    `json:"employment_type"`
+	RoleFamily    *string    `json:"role_family"` // software | ai_data | infra_security | qa, or null
 	ExpMin        *int       `json:"exp_min"`
 	ExpMax        *int       `json:"exp_max"`
 	Salary        *Money     `json:"salary"`
@@ -147,6 +152,13 @@ func buildSearch(p SearchParams) (string, []any) {
 	if p.EntryLevel {
 		where = append(where, entryLevelSQL)
 	}
+	switch p.Role {
+	case "":
+	case RoleTech:
+		where = append(where, "j.role_family IS NOT NULL")
+	default:
+		where = append(where, "j.role_family = "+bind(p.Role))
+	}
 
 	order := "coalesce(j.posted_at, j.first_seen_at) DESC, j.id DESC"
 	if p.Sort == SortRelevance && qRef != "" {
@@ -166,7 +178,7 @@ func buildSearch(p SearchParams) (string, []any) {
 	sql := `
 		SELECT j.id, j.title, c.name, c.slug, j.city, j.region, j.country, coalesce(j.location_raw, ''),
 		       (SELECT count(*) FROM job_locations jl WHERE jl.job_id = j.id),
-		       j.remote_type, j.seniority, j.employment_type, j.exp_min_years, j.exp_max_years,
+		       j.remote_type, j.seniority, j.employment_type, j.role_family, j.exp_min_years, j.exp_max_years,
 		       j.salary_min, j.salary_max, j.salary_currency, j.salary_period,
 		       j.posted_at, j.first_seen_at,
 		       coalesce((SELECT p.url FROM job_postings p WHERE p.job_id = j.id AND p.removed_at IS NULL
@@ -198,7 +210,7 @@ func (s *Store) SearchJobs(ctx context.Context, p SearchParams) (SearchResult, e
 			scur, sper *string
 		)
 		if err := rows.Scan(&j.ID, &j.Title, &j.Company.Name, &j.Company.Slug, &j.City, &j.Region, &j.Country,
-			&j.LocationRaw, &j.LocationCount, &j.RemoteType, &j.Seniority, &j.Employment, &j.ExpMin, &j.ExpMax,
+			&j.LocationRaw, &j.LocationCount, &j.RemoteType, &j.Seniority, &j.Employment, &j.RoleFamily, &j.ExpMin, &j.ExpMax,
 			&smin, &smax, &scur, &sper, &j.PostedAt, &j.FirstSeenAt, &j.URL, &j.Snippet, &j.EntryLevel, &res.Total); err != nil {
 			return SearchResult{}, err
 		}
@@ -250,7 +262,7 @@ func (s *Store) GetJob(ctx context.Context, id int64) (*JobDetail, error) {
 	err := s.pool.QueryRow(ctx, `
 		SELECT j.id, j.title, c.name, c.slug, j.city, j.region, j.country, coalesce(j.location_raw, ''),
 		       (SELECT count(*) FROM job_locations jl WHERE jl.job_id = j.id),
-		       j.remote_type, j.seniority, j.employment_type, j.exp_min_years, j.exp_max_years,
+		       j.remote_type, j.seniority, j.employment_type, j.role_family, j.exp_min_years, j.exp_max_years,
 		       j.salary_min, j.salary_max, j.salary_currency, j.salary_period,
 		       j.posted_at, j.first_seen_at,
 		       coalesce((SELECT p.url FROM job_postings p WHERE p.job_id = j.id AND p.removed_at IS NULL
@@ -258,7 +270,7 @@ func (s *Store) GetJob(ctx context.Context, id int64) (*JobDetail, error) {
 		       coalesce(j.description, ''), j.closed_at, `+entryLevelSQL+`
 		FROM jobs j JOIN companies c ON c.id = j.company_id WHERE j.id = $1`, id).
 		Scan(&d.ID, &d.Title, &d.Company.Name, &d.Company.Slug, &d.City, &d.Region, &d.Country,
-			&d.LocationRaw, &d.LocationCount, &d.RemoteType, &d.Seniority, &d.Employment, &d.ExpMin, &d.ExpMax,
+			&d.LocationRaw, &d.LocationCount, &d.RemoteType, &d.Seniority, &d.Employment, &d.RoleFamily, &d.ExpMin, &d.ExpMax,
 			&smin, &smax, &scur, &sper, &d.PostedAt, &d.FirstSeenAt, &d.URL, &d.Description, &d.ClosedAt, &d.EntryLevel)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrNotFound
@@ -322,11 +334,13 @@ type Facets struct {
 	Remote     []FacetValue `json:"remote_types"`
 	Seniority  []FacetValue `json:"seniorities"`
 	Employment []FacetValue `json:"employment_types"`
+	Roles      []FacetValue `json:"roles"` // role families with their job counts
 	Quick      QuickCounts  `json:"quick"`
 }
 
 // QuickCounts are the sizes of the dashboard's quick views.
 type QuickCounts struct {
+	Tech        int `json:"tech"` // jobs with any technical role family
 	EntryLevel  int `json:"entry_level"`
 	Internships int `json:"internships"`
 	New7Days    int `json:"new_7_days"`
@@ -369,6 +383,7 @@ func (s *Store) Facets(ctx context.Context) (Facets, error) {
 		{&f.Remote, `SELECT remote_type, remote_type, count(*)::int FROM jobs WHERE closed_at IS NULL AND remote_type IS NOT NULL GROUP BY 1 ORDER BY 3 DESC`},
 		{&f.Seniority, `SELECT seniority, seniority, count(*)::int FROM jobs WHERE closed_at IS NULL AND seniority IS NOT NULL GROUP BY 1 ORDER BY 3 DESC`},
 		{&f.Employment, `SELECT employment_type, employment_type, count(*)::int FROM jobs WHERE closed_at IS NULL AND employment_type IS NOT NULL GROUP BY 1 ORDER BY 3 DESC`},
+		{&f.Roles, `SELECT role_family, role_family, count(*)::int FROM jobs WHERE closed_at IS NULL AND role_family IS NOT NULL GROUP BY 1 ORDER BY 3 DESC`},
 	}
 	errs := make([]error, len(steps))
 	var wg sync.WaitGroup
@@ -385,11 +400,12 @@ func (s *Store) Facets(ctx context.Context) (Facets, error) {
 	go func() {
 		defer wg.Done()
 		quickErr = s.pool.QueryRow(ctx, `
-			SELECT count(*) FILTER (WHERE `+entryLevelSQL+`)::int,
+			SELECT count(*) FILTER (WHERE j.role_family IS NOT NULL)::int,
+			       count(*) FILTER (WHERE `+entryLevelSQL+`)::int,
 			       count(*) FILTER (WHERE j.seniority = 'intern')::int,
 			       count(*) FILTER (WHERE coalesce(j.posted_at, j.first_seen_at) >= now() - interval '7 days')::int
 			FROM jobs j WHERE j.closed_at IS NULL`).
-			Scan(&f.Quick.EntryLevel, &f.Quick.Internships, &f.Quick.New7Days)
+			Scan(&f.Quick.Tech, &f.Quick.EntryLevel, &f.Quick.Internships, &f.Quick.New7Days)
 	}()
 	wg.Wait()
 	errs = append(errs, quickErr)

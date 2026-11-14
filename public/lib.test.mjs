@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import {
   label, safeHref, stateFromSearch, searchFromState, apiQuery, pageInfo,
   formatSalary, formatExp, formatLocation, timeAgo, formatCount, splitHighlights,
-  VIEWS, activeView, applyView, removeFilter, activeFilters,
+  VIEWS, activeView, applyView, removeFilter, activeFilters, ROLES, roleLabel,
 } from "./lib.mjs";
 
 test("label", () => {
@@ -178,4 +178,25 @@ test("activeFilters lists removable chips", () => {
   ]);
   assert.deepEqual(activeFilters({ page: 1, posted_within: "1", entry_level: "1", remote: "remote" }).map((c) => c.key),
     ["entry_level", "remote", "posted_within"]);
+});
+
+test("role filter: URL, API query, labels and chip", () => {
+  const state = stateFromSearch("?role=tech&entry_level=1");
+  assert.deepEqual(state, { page: 1, entry_level: "1", role: "tech" });
+  assert.equal(searchFromState(state), "?entry_level=1&role=tech");
+  assert.equal(new URLSearchParams(apiQuery(state)).get("role"), "tech");
+  assert.equal(roleLabel("tech"), "Software & AI roles");
+  assert.equal(roleLabel("ai_data"), "AI, ML & data");
+  assert.equal(roleLabel("infra_security"), "DevOps, cloud & security");
+  assert.equal(roleLabel(null), "");
+  assert.equal(roleLabel("nonsense"), "");
+  assert.deepEqual(ROLES.map(([v]) => v), ["tech", "software", "ai_data", "infra_security", "qa"]);
+  // a role is not a quick view: it combines with one, and keeps the view pressed
+  assert.equal(activeView({ page: 1, role: "tech", entry_level: "1" }), "fresher");
+  assert.deepEqual(activeFilters({ page: 1, role: "software", q: "go" }), [
+    { key: "q", text: "“go”" }, { key: "role", text: "Software engineering" },
+  ]);
+  assert.deepEqual(removeFilter({ page: 2, role: "qa", city: "Pune" }, "role"), { page: 1, city: "Pune" });
+  // applying a quick view keeps the chosen role
+  assert.deepEqual(applyView({ page: 1, role: "tech" }, "fresher"), { page: 1, role: "tech", entry_level: "1" });
 });

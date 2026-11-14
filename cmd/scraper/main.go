@@ -19,7 +19,9 @@ import (
 
 	"jobscraper/internal/config"
 	"jobscraper/internal/fetcher"
+	"jobscraper/internal/fetcher/amazon"
 	"jobscraper/internal/fetcher/ashby"
+	"jobscraper/internal/fetcher/atlassian"
 	"jobscraper/internal/fetcher/greenhouse"
 	"jobscraper/internal/fetcher/lever"
 	"jobscraper/internal/normalizer"
@@ -147,6 +149,8 @@ func newRunner(ctx context.Context, cfg *config.Config) (*pipeline.Runner, func(
 		greenhouse.New(cfg.UserAgent, client),
 		lever.New(cfg.UserAgent, client),
 		ashby.New(cfg.UserAgent, client),
+		amazon.New(cfg.UserAgent, client),
+		atlassian.New(cfg.UserAgent, client),
 	}
 	byKind := make(map[string]fetcher.Adapter, len(adapters))
 	for _, a := range adapters {
