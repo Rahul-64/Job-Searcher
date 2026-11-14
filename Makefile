@@ -1,0 +1,73 @@
+# Job scraper - common tasks.
+# Works with GNU make and mingw32-make, in PowerShell or Git Bash.
+# Only `go` commands are used so it does not depend on Unix tools.
+#
+# On Windows you only have mingw32-make; run:  mingw32-make <target>
+# Or in PowerShell, once per session:          Set-Alias make mingw32-make
+
+.DEFAULT_GOAL := help
+.PHONY: help build test vet fmt tidy check ping migrate migrate-down migrate-status run run-due prune version
+
+SOURCE ?=
+
+help:
+	@echo Job scraper targets
+	@echo Dev:
+	@echo     build            compile to bin/
+	@echo     test             run all tests
+	@echo     vet              static checks
+	@echo     fmt              format code
+	@echo     tidy             tidy go.mod and go.sum
+	@echo     check            fmt, vet, test and build in one go
+	@echo Database, needs .env with DATABASE_URL:
+	@echo     ping             check the database connection
+	@echo     migrate          apply pending migrations
+	@echo     migrate-status   show applied migrations
+	@echo     migrate-down     roll back the last migration
+	@echo Scraping, planned and not implemented yet:
+	@echo     run SOURCE=greenhouse:stripe   scrape one source
+	@echo     run-due          scrape all due sources
+	@echo     prune            prune old raw payloads
+	@echo Other:
+	@echo     version          print scraper version
+
+build:
+	go build -o bin/ ./cmd/scraper
+
+test:
+	go test ./...
+
+vet:
+	go vet ./...
+
+fmt:
+	go fmt ./...
+
+tidy:
+	go mod tidy
+
+check: fmt vet test build
+
+ping:
+	go run ./cmd/scraper ping
+
+migrate:
+	go run ./cmd/scraper migrate
+
+migrate-status:
+	go run ./cmd/scraper migrate-status
+
+migrate-down:
+	go run ./cmd/scraper migrate-down
+
+run:
+	go run ./cmd/scraper run --source $(SOURCE)
+
+run-due:
+	go run ./cmd/scraper run-due
+
+prune:
+	go run ./cmd/scraper prune
+
+version:
+	go run ./cmd/scraper version
