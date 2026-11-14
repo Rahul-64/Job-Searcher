@@ -1,0 +1,25 @@
+{
+  "jobs": [
+    {
+      "id": 4970739101,
+      "title": "  Assistant Manager - Internal Audit ",
+      "absolute_url": "https://job-boards.eu.greenhouse.io/groww/jobs/4970739101",
+      "location": { "name": "Bengaluru-VTP, India" },
+      "updated_at": "2026-09-14T03:52:53-04:00",
+      "first_published": "2026-09-14T03:49:28-04:00",
+      "departments": [ { "id": 1, "name": "Internal Controls" }, { "id": 2, "name": "Finance" } ],
+      "content": "&lt;div&gt;&lt;strong&gt;About us:&lt;/strong&gt;&lt;/div&gt;&lt;p&gt;We build &amp;amp; ship.&lt;/p&gt;"
+    },
+    {
+      "id": 5001,
+      "title": "Staff Engineer",
+      "absolute_url": "https://example.com/jobs/5001",
+      "location": { "name": "Remote - US" },
+      "updated_at": "not-a-date",
+      "first_published": "",
+      "departments": [],
+      "content": ""
+    }
+  ],
+  "meta": { "total": 2 }
+}

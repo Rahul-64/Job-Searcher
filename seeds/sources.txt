@@ -1,0 +1,21 @@
+# One source per line: kind:token. Blank lines and # comments are ignored.
+# All boards below were verified live and list jobs in India.
+# Add more by finding a company's Greenhouse board token (the part after
+# boards.greenhouse.io/ or job-boards.greenhouse.io/ in its job URLs).
+
+greenhouse:groww
+greenhouse:druva
+greenhouse:pubmatic
+greenhouse:netskope
+greenhouse:twilio
+greenhouse:coinbase
+greenhouse:airbnb
+greenhouse:gitlab
+greenhouse:elastic
+greenhouse:mongodb
+greenhouse:rubrik
+greenhouse:zscaler
+greenhouse:okta
+greenhouse:stripe
+greenhouse:databricks
+greenhouse:datadog

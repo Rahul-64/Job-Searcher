@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/pressly/goose/v3"
@@ -23,6 +24,9 @@ func Open(ctx context.Context, url string) (*pgxpool.Pool, error) {
 	// Neon scales to zero; keep the pool small and tolerate a slow first connect.
 	cfg.MaxConns = 5
 	cfg.ConnConfig.ConnectTimeout = 15 * time.Second
+	// Neon's pooled endpoint sits behind pgbouncer; unnamed prepared statements
+	// (describe mode) work there, named cached ones can break.
+	cfg.ConnConfig.DefaultQueryExecMode = pgx.QueryExecModeCacheDescribe
 
 	pool, err := pgxpool.NewWithConfig(ctx, cfg)
 	if err != nil {

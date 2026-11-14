@@ -6,7 +6,7 @@
 # Or in PowerShell, once per session:          Set-Alias make mingw32-make
 
 .DEFAULT_GOAL := help
-.PHONY: help build test vet fmt tidy check ping migrate migrate-down migrate-status run run-due prune version
+.PHONY: help build test vet fmt tidy check ping migrate migrate-down migrate-status stats seed run run-all run-due prune version
 
 SOURCE ?=
 
@@ -24,10 +24,14 @@ help:
 	@echo     migrate          apply pending migrations
 	@echo     migrate-status   show applied migrations
 	@echo     migrate-down     roll back the last migration
-	@echo Scraping, planned and not implemented yet:
-	@echo     run SOURCE=greenhouse:stripe   scrape one source
-	@echo     run-due          scrape all due sources
-	@echo     prune            prune old raw payloads
+	@echo     stats            counts, per-source status and database size
+	@echo Scraping:
+	@echo     seed             register sources from seeds/sources.txt
+	@echo     run SOURCE=greenhouse:groww   scrape one source
+	@echo     run-all          scrape every enabled source
+	@echo Planned, not implemented yet:
+	@echo     run-due          scrape only due sources, phase 2
+	@echo     prune            prune old raw payloads, phase 6
 	@echo Other:
 	@echo     version          print scraper version
 
@@ -60,8 +64,17 @@ migrate-status:
 migrate-down:
 	go run ./cmd/scraper migrate-down
 
+stats:
+	go run ./cmd/scraper stats
+
+seed:
+	go run ./cmd/scraper seed
+
 run:
 	go run ./cmd/scraper run --source $(SOURCE)
+
+run-all:
+	go run ./cmd/scraper run --all
 
 run-due:
 	go run ./cmd/scraper run-due

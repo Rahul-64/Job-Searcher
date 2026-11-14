@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -23,7 +24,7 @@ type Config struct {
 
 // Load reads .env (if present) and then the environment.
 func Load() (*Config, error) {
-	if err := loadDotEnv(".env"); err != nil {
+	if err := loadDotEnv(findDotEnv()); err != nil {
 		return nil, err
 	}
 	c := &Config{
@@ -51,6 +52,30 @@ func (c *Config) RequireDatabaseURL() (string, error) {
 		return "", errors.New("DATABASE_URL is not set (copy .env.example to .env and fill it in)")
 	}
 	return c.DatabaseURL, nil
+}
+
+// findDotEnv looks for .env in the working directory, then in each parent up to
+// and including the module root (the directory holding go.mod). This lets
+// `go test` in a package folder find the project's .env. If nothing is found it
+// returns ".env" so a missing file is simply ignored.
+func findDotEnv() string {
+	dir, err := os.Getwd()
+	if err != nil {
+		return ".env"
+	}
+	for {
+		if _, err := os.Stat(filepath.Join(dir, ".env")); err == nil {
+			return filepath.Join(dir, ".env")
+		}
+		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
+			return ".env" // reached the module root without finding one
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return ".env"
+		}
+		dir = parent
+	}
 }
 
 func envOr(key, fallback string) string {
