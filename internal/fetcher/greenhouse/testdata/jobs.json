@@ -8,6 +8,12 @@
       "updated_at": "2026-09-14T03:52:53-04:00",
       "first_published": "2026-09-14T03:49:28-04:00",
       "departments": [ { "id": 1, "name": "Internal Controls" }, { "id": 2, "name": "Finance" } ],
+      "metadata": [
+        { "id": 1, "name": "Employment Type", "value": " Full-time ", "value_type": "short_text" },
+        { "id": 2, "name": "Workplace Type", "value": "Hybrid", "value_type": "short_text" },
+        { "id": 3, "name": "Team", "value": "ignored", "value_type": "short_text" },
+        { "id": 4, "name": "Budget", "value": { "min_value": 1 }, "value_type": "currency_range" }
+      ],
       "content": "&lt;div&gt;&lt;strong&gt;About us:&lt;/strong&gt;&lt;/div&gt;&lt;p&gt;We build &amp;amp; ship.&lt;/p&gt;"
     },
     {

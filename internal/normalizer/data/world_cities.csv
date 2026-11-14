@@ -1,0 +1,172 @@
+# city,region,country,aliases (semicolon separated, lower case, no commas)
+# For US, CA and IN the region must match regions.csv exactly (checked by a test).
+# When a name is ambiguous the entry listed here is the primary meaning.
+San Francisco,California,US,sf;san francisco bay area;sf bay area;bay area
+South San Francisco,California,US,
+San Jose,California,US,
+Santa Clara,California,US,
+Sunnyvale,California,US,
+Mountain View,California,US,
+Palo Alto,California,US,
+Menlo Park,California,US,
+Redwood City,California,US,
+San Mateo,California,US,
+Cupertino,California,US,
+Oakland,California,US,
+Los Angeles,California,US,la;l.a.
+Santa Monica,California,US,
+Irvine,California,US,
+San Diego,California,US,
+New York,New York,US,new york city;nyc;manhattan;brooklyn
+Seattle,Washington,US,
+Bellevue,Washington,US,
+Redmond,Washington,US,
+Kirkland,Washington,US,
+Austin,Texas,US,
+Dallas,Texas,US,
+Houston,Texas,US,
+Boston,Massachusetts,US,
+Cambridge,Massachusetts,US,
+Chicago,Illinois,US,
+Denver,Colorado,US,
+Boulder,Colorado,US,
+Atlanta,Georgia,US,
+Miami,Florida,US,
+Washington,District of Columbia,US,washington dc;washington d.c.;washington d.c;dc;d.c.;d.c
+Portland,Oregon,US,
+Raleigh,North Carolina,US,
+Durham,North Carolina,US,
+Charlotte,North Carolina,US,
+Pittsburgh,Pennsylvania,US,
+Philadelphia,Pennsylvania,US,
+Phoenix,Arizona,US,
+Salt Lake City,Utah,US,slc
+Minneapolis,Minnesota,US,
+Detroit,Michigan,US,
+Indianapolis,Indiana,US,
+Columbus,Ohio,US,
+Nashville,Tennessee,US,
+Las Vegas,Nevada,US,
+Toronto,Ontario,CA,gta;greater toronto area
+Ottawa,Ontario,CA,
+Waterloo,Ontario,CA,
+Vancouver,British Columbia,CA,
+Montreal,Quebec,CA,montréal
+Calgary,Alberta,CA,
+London,England,GB,greater london
+Manchester,England,GB,
+Birmingham,England,GB,
+Bristol,England,GB,
+Oxford,England,GB,
+Edinburgh,Scotland,GB,
+Glasgow,Scotland,GB,
+Belfast,Northern Ireland,GB,
+Cardiff,Wales,GB,
+Dublin,,IE,
+Cork,,IE,
+Galway,,IE,
+Limerick,,IE,
+Paris,,FR,
+Lyon,,FR,
+Berlin,,DE,
+Munich,,DE,münchen;muenchen
+Hamburg,,DE,
+Frankfurt,,DE,frankfurt am main
+Cologne,,DE,köln;koln
+Stuttgart,,DE,
+Amsterdam,,NL,
+Rotterdam,,NL,
+Madrid,,ES,
+Barcelona,,ES,
+Lisbon,,PT,lisboa
+Porto,,PT,
+Rome,,IT,roma
+Milan,,IT,milano
+Stockholm,,SE,
+Gothenburg,,SE,göteborg
+Copenhagen,,DK,
+Oslo,,NO,
+Helsinki,,FI,
+Zurich,,CH,zürich
+Geneva,,CH,genève
+Vienna,,AT,wien
+Brussels,,BE,bruxelles
+Warsaw,,PL,warszawa
+Krakow,,PL,kraków;cracow
+Wroclaw,,PL,wrocław
+Gdansk,,PL,gdańsk
+Poznan,,PL,poznań
+Prague,,CZ,praha
+Budapest,,HU,
+Bucharest,,RO,bucurești
+Cluj-Napoca,,RO,cluj
+Sofia,,BG,
+Belgrade,,RS,
+Zagreb,,HR,
+Tallinn,,EE,
+Riga,,LV,
+Vilnius,,LT,
+Athens,,GR,
+Kyiv,,UA,kiev
+Istanbul,,TR,
+Tel Aviv,,IL,tel-aviv;tel aviv-yafo
+Jerusalem,,IL,
+Dubai,,AE,
+Abu Dhabi,,AE,
+Riyadh,,SA,
+Doha,,QA,
+Cairo,,EG,
+Lagos,,NG,
+Nairobi,,KE,
+Accra,,GH,
+Johannesburg,,ZA,
+Cape Town,,ZA,
+Casablanca,,MA,
+Singapore,,SG,
+Tokyo,,JP,
+Osaka,,JP,
+Seoul,,KR,
+Beijing,,CN,
+Shanghai,,CN,
+Shenzhen,,CN,
+Guangzhou,,CN,
+Hangzhou,,CN,
+Hong Kong,,HK,
+Taipei,,TW,
+Bangkok,,TH,
+Ho Chi Minh City,,VN,saigon;hcmc;ho chi minh
+Hanoi,,VN,
+Jakarta,,ID,
+Kuala Lumpur,,MY,kl
+Manila,,PH,metro manila;makati;taguig
+Cebu,,PH,
+Sydney,,AU,
+Melbourne,,AU,
+Brisbane,,AU,
+Perth,,AU,
+Canberra,,AU,
+Auckland,,NZ,
+Wellington,,NZ,
+Mexico City,,MX,ciudad de méxico;cdmx
+Guadalajara,,MX,
+Monterrey,,MX,
+São Paulo,,BR,sao paulo
+Rio de Janeiro,,BR,
+Buenos Aires,,AR,
+Santiago,,CL,
+Bogotá,,CO,bogota
+Medellín,,CO,medellin
+Lima,,PE,
+Montevideo,,UY,
+Panama City,,PA,
+Karachi,,PK,
+Lahore,,PK,
+Islamabad,,PK,
+Dhaka,,BD,
+Colombo,,LK,
+Kathmandu,,NP,
+Tbilisi,,GE,
+Yerevan,,AM,
+Almaty,,KZ,
+Limassol,,CY,
+Luxembourg,,LU,luxembourg city

@@ -6,7 +6,7 @@
 # Or in PowerShell, once per session:          Set-Alias make mingw32-make
 
 .DEFAULT_GOAL := help
-.PHONY: help build test vet fmt tidy check ping migrate migrate-down migrate-status stats seed run run-all run-due prune version
+.PHONY: help build test test-unit vet fmt tidy check ping migrate migrate-down migrate-status stats seed run run-all run-due sources enable disable renormalize dedup quality seed-locations prune version
 
 SOURCE ?=
 
@@ -14,7 +14,8 @@ help:
 	@echo Job scraper targets
 	@echo Dev:
 	@echo     build            compile to bin/
-	@echo     test             run all tests
+	@echo     test             run all tests, including database integration tests
+	@echo     test-unit        fast tests only, no database
 	@echo     vet              static checks
 	@echo     fmt              format code
 	@echo     tidy             tidy go.mod and go.sum
@@ -28,9 +29,18 @@ help:
 	@echo Scraping:
 	@echo     seed             register sources from seeds/sources.txt
 	@echo     run SOURCE=greenhouse:groww   scrape one source
-	@echo     run-all          scrape every enabled source
+	@echo     run-due          scrape only sources that are due, what the daily cron runs
+	@echo     run-all          scrape every enabled source, due or not
+	@echo Source health:
+	@echo     sources          list sources with state, failures and last run
+	@echo     enable SOURCE=kind:token    re-enable a source
+	@echo     disable SOURCE=kind:token   stop scraping a source
+	@echo Data quality:
+	@echo     renormalize      re-derive jobs from stored raw payloads, no scraping, then dedup
+	@echo     dedup            merge identical jobs
+	@echo     quality          coverage report for location, remote, seniority, experience, salary
+	@echo     seed-locations   load reference cities and aliases
 	@echo Planned, not implemented yet:
-	@echo     run-due          scrape only due sources, phase 2
 	@echo     prune            prune old raw payloads, phase 6
 	@echo Other:
 	@echo     version          print scraper version
@@ -40,6 +50,9 @@ build:
 
 test:
 	go test ./...
+
+test-unit:
+	go test -short ./...
 
 vet:
 	go vet ./...
@@ -78,6 +91,27 @@ run-all:
 
 run-due:
 	go run ./cmd/scraper run-due
+
+sources:
+	go run ./cmd/scraper sources
+
+renormalize:
+	go run ./cmd/scraper renormalize
+
+dedup:
+	go run ./cmd/scraper dedup
+
+quality:
+	go run ./cmd/scraper quality
+
+seed-locations:
+	go run ./cmd/scraper seed-locations
+
+enable:
+	go run ./cmd/scraper enable $(SOURCE)
+
+disable:
+	go run ./cmd/scraper disable $(SOURCE)
 
 prune:
 	go run ./cmd/scraper prune

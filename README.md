@@ -19,18 +19,57 @@ go run ./cmd/scraper migrate          # create the P0 tables
 go run ./cmd/scraper migrate-status   # confirm
 ```
 
-## Scraping (Phase 1: Greenhouse)
+## Scraping (Greenhouse, Lever, Ashby)
 
 ```powershell
-make seed                          # register the boards in seeds/sources.txt
-make run SOURCE=greenhouse:groww   # scrape one board
-make run-all                       # scrape every enabled board
+make seed                          # register the sources in seeds/sources.txt
+make run-due                       # scrape only sources that are due (what the daily cron runs)
+make run SOURCE=lever:paytm        # scrape one source
+make run-all                       # scrape every enabled source, due or not
+make sources                       # list sources: state, failures, last run
 make stats                         # counts, per-source status, database size
 ```
 
 Re-running is safe: unchanged jobs are left alone, changed jobs are updated, and jobs that
-disappear from a board are marked closed. If a board suddenly returns 0 jobs, nothing is closed.
-Add companies by appending `greenhouse:<token>` lines to `seeds/sources.txt` and running `make seed`.
+disappear from a board are marked closed. Add companies by appending `kind:token [Display Name]`
+lines to `seeds/sources.txt` and running `make seed`.
+
+### Built-in safeguards
+| Safeguard | Behaviour |
+|---|---|
+| **robots.txt** | Checked for every host (RFC 9309): a missing/4xx file means allowed, a 5xx means blocked. `Crawl-delay` is honoured. |
+| **Rate limit** | At least `SCRAPE_MIN_INTERVAL` (default 1s) between requests to one host, even with concurrent workers. |
+| **Retries** | Network errors, 429 and 5xx retry with jittered exponential backoff and `Retry-After`; 4xx never retries. |
+| **Circuit breaker** | After `SCRAPE_MAX_FAILURES` (default 5) consecutive failures a source is disabled with a reason. Fix it, then `make enable SOURCE=kind:token`. |
+| **Mass-drop guard** | If a source returns 0 jobs, or under half of a 20+ job board, nothing is closed. Override with `run --accept-drop` once you have checked. |
+| **Run lock** | Two overlapping runs of one source cannot both start; a crashed run is reclaimed after 30 minutes. |
+
+## India focus and data quality
+
+The scraper currently collects **India only** (`TARGET_COUNTRIES=IN`). Every posting's location is
+normalized; a job whose places are all outside India is not stored, and one whose location cannot be
+resolved is kept (so nothing Indian is lost to a parsing gap). Jobs already stored that fall out of scope
+are *closed*, never deleted.
+
+```powershell
+make quality         # coverage of location, remote type, seniority, experience, salary
+make renormalize     # re-derive jobs from stored raw payloads (no scraping), then dedup
+```
+
+What is derived for each job: normalized title and seniority, one or more places (city, state, country),
+remote / hybrid / onsite, employment type, years of experience, and salary. Source data is used when the
+source provides it (Lever, Ashby); otherwise it is parsed from the text, favouring precision over recall:
+a field stays empty rather than being guessed. Rules are versioned (`normalizer.Version`); after changing
+them, `make renormalize` updates every job in seconds from the stored payloads.
+
+Identical postings (same company, title, place **and description**) become one job with several postings.
+The description is part of the match on purpose: many roles share a title and city but belong to different
+teams.
+
+## Daily schedule (GitHub Actions)
+[`.github/workflows/scrape.yml`](.github/workflows/scrape.yml) runs `run-due` at 06:00 IST. It also runs
+manually from the Actions tab (choose `due` or `all`). A source is "due" 23 hours after its last run
+(a 1-hour tolerance, so a run that finished a few minutes late yesterday is not skipped today).
 
 ## Make targets
 
@@ -59,4 +98,4 @@ web/             dashboard (phase 4)
 
 ## GitHub Actions secrets
 `DATABASE_URL` (required), `DATABASE_URL_DIRECT` (optional, non-pooled Neon URL for migrations).
-Optional repository variable: `USER_AGENT`.
+Optional repository variable: `USER_AGENT` (use a name with a contact address).

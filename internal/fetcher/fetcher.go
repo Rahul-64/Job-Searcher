@@ -21,6 +21,13 @@ type RawJob struct {
 	Title           string
 	Location        string // free text, e.g. "Bengaluru-VTP, India"
 	Department      string
+	Country         string  // ISO 3166 alpha-2 when the source states it (else empty)
+	Remote          string  // workplace type in the source's own words ("remote", "OnSite", ...)
+	Employment      string  // employment type in the source's own words ("Full Time Employee", ...)
+	SalaryMin       float64 // structured pay range when the source provides one (0 = none)
+	SalaryMax       float64
+	SalaryCurrency  string     // ISO 4217
+	SalaryPeriod    string     // year | month | hour
 	DescriptionHTML string     // HTML, already entity-decoded
 	PostedAt        *time.Time // first published
 	UpdatedAt       *time.Time
@@ -48,8 +55,13 @@ type Adapter interface {
 	Kind() string
 	// BoardURL is the canonical API URL for a board token (stored in sources.base_url).
 	BoardURL(token string) string
-	// Company returns the human-readable company name for a board token.
+	// Company verifies the board exists (returning ErrBoardNotFound if not) and
+	// returns its display name, or "" when the source does not provide one.
 	Company(ctx context.Context, token string) (string, error)
 	// Fetch returns every job currently listed on the board.
 	Fetch(ctx context.Context, token string) ([]RawJob, error)
+	// Parse rebuilds a RawJob from the original JSON of one job (RawJob.Payload),
+	// exactly as Fetch would have. It is how stored jobs are re-derived with
+	// improved rules without re-scraping.
+	Parse(payload []byte) (RawJob, error)
 }

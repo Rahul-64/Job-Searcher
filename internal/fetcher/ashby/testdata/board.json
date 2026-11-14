@@ -1,0 +1,43 @@
+{
+  "apiVersion": "1",
+  "jobs": [
+    {
+      "id": "c0406fe0-c8c0-44aa-aa3e-b879f2bf1049",
+      "title": " Engagement Manager, Chanakya ",
+      "department": "Business Development",
+      "team": "Sales",
+      "employmentType": "FullTime",
+      "workplaceType": "Hybrid",
+      "compensation": { "compensationTierSummary": "x", "compensationTiers": [ { "components": [
+        { "compensationType": "EquityPercentage", "currencyCode": null, "interval": "NONE", "minValue": 1, "maxValue": 2 },
+        { "compensationType": "Salary", "currencyCode": "INR", "interval": "1 YEAR", "minValue": 2400000, "maxValue": 3600000 }
+      ] } ] },
+      "location": "Delhi",
+      "secondaryLocations": [ { "location": "Mumbai" }, { "location": "delhi" } ],
+      "publishedAt": "2026-04-17T11:46:39.214+00:00",
+      "isListed": true,
+      "isRemote": false,
+      "address": { "postalAddress": { "addressRegion": "Delhi", "addressCountry": "India", "addressLocality": "Delhi" } },
+      "jobUrl": "https://jobs.ashbyhq.com/acme/c0406fe0-c8c0-44aa-aa3e-b879f2bf1049",
+      "descriptionHtml": "<p>About us</p>"
+    },
+    {
+      "id": "unlisted-1",
+      "title": "Secret Role",
+      "isListed": false,
+      "jobUrl": "https://jobs.ashbyhq.com/acme/unlisted-1",
+      "descriptionHtml": "<p>hidden</p>"
+    },
+    {
+      "id": "us-1",
+      "title": "Staff Engineer",
+      "team": "Platform",
+      "location": "San Francisco",
+      "publishedAt": "garbage",
+      "isRemote": true,
+      "jobUrl": "https://jobs.ashbyhq.com/acme/us-1",
+      "address": { "postalAddress": { "addressCountry": "United States" } },
+      "descriptionHtml": ""
+    }
+  ]
+}

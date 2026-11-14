@@ -1,0 +1,36 @@
+[
+  {
+    "id": "7d9af9b5-c1c7-48ec-bbb5-9b25e49f6596",
+    "text": "  AM/ Manager - Risk & Decision Science ",
+    "hostedUrl": "https://jobs.lever.co/acme/7d9af9b5-c1c7-48ec-bbb5-9b25e49f6596",
+    "createdAt": 1757916149833,
+    "country": "in",
+    "description": "<div><strong>About the Team</strong></div>",
+    "additional": "<p>We are an equal opportunity employer.</p>",
+    "lists": [
+      { "text": "What you will do", "content": "<li>Build models</li><li>Ship them</li>" },
+      { "text": "Empty section", "content": "  " }
+    ],
+    "categories": {
+      "location": "Bangalore, Karnataka",
+      "allLocations": ["Bangalore, Karnataka", "Remote - India"],
+      "team": "Risk",
+      "department": "Financial Services",
+      "commitment": " Full Time Employee "
+    },
+    "salaryRange": { "min": 1200000, "max": 1800000, "currency": "inr", "interval": "per-year-salary" },
+    "workplaceType": "onsite"
+  },
+  {
+    "id": "second-posting",
+    "text": "Designer",
+    "hostedUrl": "https://jobs.lever.co/acme/second-posting",
+    "createdAt": 0,
+    "country": "",
+    "descriptionBody": "<p>Fallback body</p>",
+    "lists": [],
+    "salaryRange": { "min": 0, "max": 0, "currency": "INR", "interval": "per-year-salary" },
+    "workplaceType": "unspecified",
+    "categories": { "location": "", "allLocations": [], "department": "Design" }
+  }
+]

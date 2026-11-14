@@ -9,7 +9,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"time"
 )
 
 type Config struct {
@@ -20,6 +22,13 @@ type Config struct {
 	DatabaseURLDirect string
 	// UserAgent identifies the scraper to websites.
 	UserAgent string
+	// MinInterval is the minimum gap between requests to one host.
+	MinInterval time.Duration
+	// MaxFailures is how many consecutive failed runs disable a source.
+	MaxFailures int
+	// TargetCountries are the ISO country codes we collect jobs for (default IN).
+	// Jobs located only in other countries are not stored. Empty means everywhere.
+	TargetCountries []string
 }
 
 // Load reads .env (if present) and then the environment.
@@ -32,7 +41,63 @@ func Load() (*Config, error) {
 		DatabaseURLDirect: os.Getenv("DATABASE_URL_DIRECT"),
 		UserAgent:         envOr("USER_AGENT", "jobscraper/0.1 (personal project)"),
 	}
+	var err error
+	if c.MinInterval, err = envDuration("SCRAPE_MIN_INTERVAL", time.Second); err != nil {
+		return nil, err
+	}
+	if c.MaxFailures, err = envInt("SCRAPE_MAX_FAILURES", 5); err != nil {
+		return nil, err
+	}
+	if c.TargetCountries, err = envCountries("TARGET_COUNTRIES", []string{"IN"}); err != nil {
+		return nil, err
+	}
 	return c, nil
+}
+
+// envCountries parses a comma-separated list of ISO alpha-2 codes. An unset
+// variable gives the fallback; "ALL" or an empty value means no restriction.
+func envCountries(key string, fallback []string) ([]string, error) {
+	v, set := os.LookupEnv(key)
+	if !set {
+		return fallback, nil
+	}
+	v = strings.TrimSpace(v)
+	if v == "" || strings.EqualFold(v, "all") {
+		return nil, nil
+	}
+	var out []string
+	for _, c := range strings.Split(v, ",") {
+		c = strings.ToUpper(strings.TrimSpace(c))
+		if len(c) != 2 || c[0] < 'A' || c[0] > 'Z' || c[1] < 'A' || c[1] > 'Z' {
+			return nil, fmt.Errorf("%s=%q: %q is not a two-letter country code (example: IN or IN,SG)", key, v, c)
+		}
+		out = append(out, c)
+	}
+	return out, nil
+}
+
+func envDuration(key string, fallback time.Duration) (time.Duration, error) {
+	v := os.Getenv(key)
+	if v == "" {
+		return fallback, nil
+	}
+	d, err := time.ParseDuration(v)
+	if err != nil || d < 0 {
+		return 0, fmt.Errorf("%s=%q is not a valid duration (examples: 1s, 500ms)", key, v)
+	}
+	return d, nil
+}
+
+func envInt(key string, fallback int) (int, error) {
+	v := os.Getenv(key)
+	if v == "" {
+		return fallback, nil
+	}
+	n, err := strconv.Atoi(v)
+	if err != nil || n < 1 {
+		return 0, fmt.Errorf("%s=%q must be a positive integer", key, v)
+	}
+	return n, nil
 }
 
 // MigrationURL returns the URL migrations should use.

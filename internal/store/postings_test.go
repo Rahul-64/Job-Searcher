@@ -40,3 +40,30 @@ func TestClassifyEmpty(t *testing.T) {
 		t.Fatal("expected nothing")
 	}
 }
+
+func TestMassDrop(t *testing.T) {
+	cases := []struct {
+		name          string
+		active, found int
+		want          bool
+	}{
+		{"first run", 0, 50, false},
+		{"empty first run", 0, 0, false},
+		{"empty result for a board with jobs", 5, 0, true},
+		{"normal churn", 100, 90, false},
+		{"exactly half is fine", 100, 50, false},
+		{"more than half gone on a real board", 100, 49, true},
+		{"small board may swing wildly", 10, 3, false},
+		{"threshold board of 20 losing 11", 20, 9, true},
+		{"growth", 20, 80, false},
+	}
+	for _, c := range cases {
+		got, why := massDrop(c.active, c.found)
+		if got != c.want {
+			t.Errorf("%s: massDrop(%d,%d) = %v (%q), want %v", c.name, c.active, c.found, got, why, c.want)
+		}
+		if got && why == "" {
+			t.Errorf("%s: a guard hit must explain itself", c.name)
+		}
+	}
+}

@@ -1,8 +1,15 @@
-# One source per line: kind:token. Blank lines and # comments are ignored.
+# One source per line:  kind:token  [Display Name]
+# kinds: greenhouse | lever | ashby.  Blank lines and # comments are ignored.
+# The display name is optional; Lever and Ashby have no name endpoint, so give one
+# when the title-cased token ("Cred") would look wrong.
 # All boards below were verified live and list jobs in India.
-# Add more by finding a company's Greenhouse board token (the part after
-# boards.greenhouse.io/ or job-boards.greenhouse.io/ in its job URLs).
+#
+# To find a board token, open a company's careers page and look at a job URL:
+#   boards.greenhouse.io/<token>/...   or   job-boards.greenhouse.io/<token>/...
+#   jobs.lever.co/<token>/...
+#   jobs.ashbyhq.com/<token>/...
 
+# --- Greenhouse ---
 greenhouse:groww
 greenhouse:druva
 greenhouse:pubmatic
@@ -13,9 +20,23 @@ greenhouse:airbnb
 greenhouse:gitlab
 greenhouse:elastic
 greenhouse:mongodb
-greenhouse:rubrik
+greenhouse:rubrik      Rubrik
 greenhouse:zscaler
 greenhouse:okta
 greenhouse:stripe
 greenhouse:databricks
 greenhouse:datadog
+
+# --- Lever ---
+lever:paytm            Paytm
+lever:meesho           Meesho
+lever:cred             CRED
+lever:zeta             Zeta
+lever:mindtickle       Mindtickle
+lever:jumpcloud        JumpCloud
+
+# --- Ashby ---
+ashby:sarvam           Sarvam AI
+ashby:clickhouse       ClickHouse
+ashby:openai           OpenAI
+ashby:notion           Notion
